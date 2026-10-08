@@ -131,12 +131,17 @@ its audio) acks instantly.
 
 ## Status
 
-The uncached Gemini eval after the Beacon rename passed **8/8 planted moments** on 2026-10-07
-(`gemini-3.5-flash-lite`, thinking `low`), with 36 network requests and no API errors. The control
-call passed with one private nudge that resolved and no spoken interjections. See `eval_results.md`
-and DECISIONS.md's "Tuning log" for details and the earlier stand-in checks. Live Chrome testing
-revealed the old name's transcription problem; the renamed wake word still needs the README's
-manual microphone/playback check. The stretch "hybrid demo mode" was not built.
+Latest full Gemini eval (round 0, 2026-10-08, 3 runs of six scripts, `gemini-3.5-flash-lite`,
+thinking `low`): demo_call 7/8 planted moments in every run (8/8 in 2/3 runs); control and
+adversarial clean calls passed in every run (≤1 private nudge, 0 spoken); the remaining misses
+were per-minute 429s and two question-tracking errors. The round-1 prompt fix for those
+(DECISIONS.md "Tuning log") was committed, but its rerun was cut short when the free tier's
+**500-requests-per-day** quota ran out; `eval_results.md` still shows round 0. Rerun after the
+daily reset: `python -m eval.run --runs 3` costs about 300 requests, `--runs 1` about 100. A
+browser end-to-end check (Playwright, fake LLM) passed every UI check: card buttons, blur after
+click, visibility rules, every script from the observer's dropdown, recap in every tab. The
+renamed wake word still needs the README's manual microphone/playback check. The stretch
+"hybrid demo mode" was not built.
 
 ## Gotchas
 
