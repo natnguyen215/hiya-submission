@@ -1,5 +1,16 @@
 # Demo video run-of-show (2:45)
 
+**Pre-flight on the recording laptop (10 minutes):**
+
+1. Get the latest code: merge the PR into `main` and pull, or check out its branch.
+2. `.env` is not in git: copy `.env.example` to `.env` and paste a Gemini key.
+3. `python tasks.py install`, `python tasks.py build`, `python tasks.py run`, then open the three
+   URLs from the README in Chrome.
+4. Say "Beacon, what's a Parent PLUS loan?" once in the parent window, holding push-to-talk: it
+   checks the microphone, the wake word and audio in one go (the README's manual checklist
+   has the rest).
+5. Rehearse the simulation once with "Text only" unticked; then **Reset** before the real take.
+
 **Quota before recording:** the free tier gives 500 Gemini requests a day (reset at midnight
 Pacific). A take of the simulated call costs about 35, the live beat a handful, so a rehearsal
 plus several takes fit easily, but don't run the full eval (about 100 requests per run) on
@@ -22,7 +33,7 @@ highlights (2–4×) in editing.
 | 0:25–0:50 | Moment (a): Maria: "So it's covered." A card appears in the counselor window. Alex clarifies; the card turns green "Clarified". | "First it nudges the counselor privately, with a suggested clarification. Alex fixes it, so Beacon never says a word. That's the common case." |
 | 0:50–1:15 | Moment (b): "Oh good, so we're verified?" Alex moves on to housing. Beacon, at the pause: "Quick check for Maria: ..." Alex answers. | "Here the counselor moves on. Beacon waits for a pause and asks one short question, on Maria's behalf, to the counselor. It asks; it doesn't answer for the school." |
 | 1:15–1:30 | Moment (c): the **3.0s pause** badge before Maria's "...okay." | "This is something only voice carries: a three-second pause before 'okay.' Beacon treats hesitation as a signal. Alex sees the card and explains SAP." |
-| 1:30–1:50 | Moment (e): "Beacon, what's a Parent PLUS loan?" Spoken answer; point at its Decision Log entry, "answer (documents G9, L15)", which lists the cited lines (expand "data" for the full answer). | "The family can also ask Beacon directly. Answers come only from the award letter and a plain-language glossary, with citations." |
+| 1:30–1:50 | Moment (e): "Beacon, what's a Parent PLUS loan?" Spoken answer; point at its Decision Log entry, "answer (documents G9)" or similar, which lists the cited lines (expand "data" for the full answer). | "The family can also ask Beacon directly. Answers come only from the award letter and a plain-language glossary, with citations." |
 | 1:50–2:15 | Decision Log and Flags panel. Hover a flag: its evidence turns and document lines light up. Point at a ladder history (nudged → spoken) and a cooldown or skipped-analysis entry. | "Under the hood, Gemini only perceives: possible misunderstandings with exact quotes. Plain Python decides: it checks every quote, dedupes, waits for the counselor first, and keeps a cooldown. Every decision is logged with its reason." |
 | 2:15–2:40 | The call ends. The Family Recap appears. Hover a reference chip (e.g. L20) to light up its document line. Press **Read aloud** for a few seconds, then show **Download .md**. | "After the call, the family gets a plain-language recap: free money, loans, work-study, what's left to pay, deadlines, and what's still unclear, every number cited. It can be read aloud." |
 | 2:40–2:45 | Back to the two windows. | "Beacon: the question the family won't ask, asked at the right moment." |
