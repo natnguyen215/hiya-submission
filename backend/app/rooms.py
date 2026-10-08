@@ -4,6 +4,7 @@ those decisions out and owns the timing (one analysis at a time, speaking only a
 
 import asyncio
 import json
+import re
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -60,6 +61,7 @@ class Room:
     name: str
     state: RoomState = field(default_factory=RoomState)
     clients: dict[WebSocket, ClientRole] = field(default_factory=dict)
+    ptt_holder: WebSocket | None = None  # ownership belongs to a tab, not every tab of its role
     speech_queue: list[Speech] = field(default_factory=list)
     summons_in_progress: int = 0
     analysis_task: asyncio.Task | None = None
@@ -103,6 +105,7 @@ def _state_for(state: RoomState, role: ClientRole) -> RoomState:
 
 async def broadcast(room: Room, message: BaseModel, roles: set[str] | None = None) -> None:
     data = message.model_dump_json()
+    failed = []
     # One broadcast at a time, so every tab receives messages in the order they were produced
     # (a newer status can't overtake an older one while a send to another tab is in progress).
     async with room.send_lock:
@@ -112,6 +115,10 @@ async def broadcast(room: Room, message: BaseModel, roles: set[str] | None = Non
                     await ws.send_text(data)
                 except Exception:
                     room.clients.pop(ws, None)  # the tab went away mid-send
+                    failed.append(ws)
+    # Releasing the floor sends status; do it outside the send lock to avoid deadlocking.
+    for ws in failed:
+        await disconnect(room, ws)
 
 
 async def send_status(room: Room) -> None:
@@ -173,9 +180,11 @@ async def connect(room: Room, ws: WebSocket, role: ClientRole) -> None:
 
 
 async def disconnect(room: Room, ws: WebSocket) -> None:
-    role = room.clients.pop(ws, None)
-    if role and room.state.status.ptt_active == role:
+    room.clients.pop(ws, None)
+    if room.ptt_holder is ws:
+        room.ptt_holder = None
         room.state.status.ptt_active = None  # a closed tab can't keep holding the floor
+        room.last_activity = time.monotonic()
         await send_status(room)
 
 
@@ -191,12 +200,19 @@ async def handle(room: Room, ws: WebSocket, role: ClientRole, message: BaseModel
             gap = max(0, message.started_at - previous.ended_at) if previous else None
             await add_turn(room, role, message.text, message.started_at, message.ended_at, gap, message.source)
         case SimTurn():
+            if role != "observer":
+                return  # only the script runner may submit a turn on behalf of another persona
             now = now_ms()
             await add_turn(room, message.role, message.text, now, now, message.gap_ms, "script")
-        case PttStart() if role != "observer" and status.call_status == "live" and status.ptt_active is None:
+        case PttStart() if (
+            role != "observer" and status.call_status == "live"
+            and status.ptt_active is None and status.speaking_turn_id is None
+        ):
+            room.ptt_holder = ws
             status.ptt_active = role  # first come, first served: one person holds the floor
             await send_status(room)
-        case PttStop() if status.ptt_active == role:
+        case PttStop() if room.ptt_holder is ws:
+            room.ptt_holder = None
             status.ptt_active = None
             room.last_activity = time.monotonic()
             await send_status(room)
@@ -415,6 +431,7 @@ def _cancel_tasks(room: Room) -> None:
     room.analysis_dirty = False
     room.speech_queue = []
     room.summons_in_progress = 0
+    room.ptt_holder = None
 
 
 async def start_call(room: Room, simulated: bool) -> None:
@@ -423,7 +440,9 @@ async def start_call(room: Room, simulated: bool) -> None:
     if room.state.status.call_status == "ended":
         await reset_room(room)
     config.LOGS_DIR.mkdir(parents=True, exist_ok=True)
-    room.log_path = config.LOGS_DIR / f"{room.name}-{datetime.now():%Y%m%d-%H%M%S}.jsonl"
+    # Room names come from the URL; separators and Windows filename characters aren't safe here.
+    log_name = re.sub(r"[^A-Za-z0-9_-]", "_", room.name)[:80] or "room"
+    room.log_path = config.LOGS_DIR / f"{log_name}-{datetime.now():%Y%m%d-%H%M%S-%f}.jsonl"
     room.state.status.call_status = "live"
     room.state.status.simulated = simulated
     await log(room, "call", f"call started ({'simulated' if simulated else 'live'}); log file {room.log_path.name}")

@@ -6,7 +6,7 @@ import json
 from helpers import make_state, new_flag, output
 
 from backend.app import config, policy, rooms
-from backend.app.models import PttStart, PttStop, StatusMessage
+from backend.app.models import PttStart, PttStop, SimTurn, StatusMessage
 
 
 class Socket:
@@ -83,5 +83,17 @@ def test_room_names_are_safe_in_log_filenames(monkeypatch, tmp_path):
             assert ":" not in room.log_path.name
         finally:
             rooms._cancel_tasks(room)
+
+    asyncio.run(run())
+
+
+def test_call_tabs_cannot_submit_script_turns_as_another_persona():
+    async def run():
+        room = rooms.Room(name="roles")
+        room.state.status.call_status = "live"
+        for role in ("parent", "counselor"):
+            message = SimTurn(type="sim_turn", role="parent", text="Spoofed turn", gap_ms=0)
+            await rooms.handle(room, Socket(), role, message)
+        assert room.state.turns == []
 
     asyncio.run(run())

@@ -19,6 +19,7 @@ const FALLBACK_STYLES: Record<Role, { pitch: number; rate: number }> = {
 const FEMALE_VOICE = /female|zira|aria|jenny|samantha|susan|hazel|karen|moira|tessa|victoria/i;
 
 let styles: Promise<Record<Role, VoiceStyle>> | null = null;
+let cancellation = 0;
 
 // Chrome can garbage-collect an utterance that nothing references while it is still speaking, and
 // then its end event never fires. Holding the current one here prevents that.
@@ -58,8 +59,11 @@ async function pickStyles(): Promise<Record<Role, VoiceStyle>> {
 /** Speak `text` in `who`'s voice. Always resolves, even on errors, so callers never stall the call. */
 export async function speak(text: string, who: Role): Promise<void> {
   if (!("speechSynthesis" in window)) return;
+  const beforeLoading = cancellation;
   styles ??= pickStyles();
   const { voice, pitch, rate } = (await styles)[who];
+  // Stop can happen while Chrome is loading voices, before an utterance exists to cancel.
+  if (beforeLoading !== cancellation) return;
   return new Promise((resolve) => {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.voice = voice;
@@ -81,6 +85,7 @@ export async function speak(text: string, who: Role): Promise<void> {
 }
 
 export function stopSpeaking(): void {
+  cancellation += 1;
   if ("speechSynthesis" in window) speechSynthesis.cancel();
 }
 

@@ -174,7 +174,11 @@ defaults are logged under "Tuned defaults".
 - **Summon answers: about 20 words, never more than 25.** A definition needs a sentence or two;
   anything over 25 words is logged as a warning like every other line.
 - **Push-to-talk is first come, first served on the server too:** `ptt_start` is ignored while
-  the call isn't live or someone else holds the floor.
+  the call isn't live, Beacon is speaking, or someone else holds the floor. The holding socket
+  owns the floor, so another tab of the same role cannot release it. A disconnect or failed
+  broadcast releases that socket's hold and restarts the quiet period.
+- **Stopping speech also cancels a pending voice lookup.** A cancellation counter prevents an
+  utterance from starting after Stop was clicked while Chrome was still loading voices.
 - **The microphone stays open 400 ms after release** (`RELEASE_TAIL_MS` in `speech.ts`). People
   let go while the last syllable is still sounding, and stopping at once clipped it ("beacon" →
   "beac"). The tab holds the floor through the tail, so Beacon's pause starts after it.
@@ -195,7 +199,11 @@ defaults are logged under "Tuned defaults".
   with audio, live calls, and the eval (virtual clock based on words spoken) keep real
   conversational timing. Rejected: a turn-based cooldown (the brief specifies seconds).
 - **`sim_turn` carries the script's `gap_ms`.** Real elapsed time in a simulation includes waiting
-  for analysis, which would fake hesitations everywhere.
+  for analysis, which would fake hesitations everywhere. Only the observer may submit scripted
+  turns for another persona. A simulation timeout raises an error instead of silently advancing.
+- **Room log filenames sanitize the URL's room name and include microseconds.** Separators and
+  Windows filename characters cannot escape or invalidate the logs directory, and calls started
+  within the same second get separate files.
 
 ## Wake word
 

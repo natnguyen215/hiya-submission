@@ -30,13 +30,17 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
 }
 
 /**
- * Polls until `check()` is true or `timeoutMs` passes. Polling (rather than reacting to each
+ * Polls until `check()` is true, rejecting if `timeoutMs` passes. Polling (rather than reacting to each
  * message) is enough because every condition below describes where the room settles (the turn
  * exists, analysis caught up, Beacon is quiet), not a passing moment a 100 ms poll could miss.
  */
 async function waitUntil(check: () => boolean, signal: AbortSignal, timeoutMs = Infinity): Promise<void> {
   const deadline = Date.now() + timeoutMs;
-  while (!check() && Date.now() < deadline) await sleep(POLL_MS, signal);
+  signal.throwIfAborted();
+  while (!check()) {
+    if (Date.now() >= deadline) throw new Error("Timed out waiting for the server's analysis.");
+    await sleep(POLL_MS, signal);
+  }
 }
 
 function beaconIdle(status: RoomStatus): boolean {
