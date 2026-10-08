@@ -275,22 +275,26 @@ def test_unanswered_question_is_counted_by_code_then_escalates():
     state = question_state()
     assert state.parent_questions[0].asked_turn_id == "t2"
     add_turn(state, "counselor", "Next, accept your awards in the portal.")
-    actions = policy.after_analysis(state, output(), 3, now(state))
+    policy.after_analysis(state, output(), 3, now(state))
+    assert state.flags == []  # one counselor turn: the answer may still be credited late
+    add_turn(state, "counselor", "You'll get an email confirmation.")
+    actions = policy.after_analysis(state, output(), 4, now(state))
     flag = state.flags[0]
     assert (flag.trigger, flag.state) == ("UNANSWERED_QUESTION", "nudged")
     assert not speak_actions(actions)
-    add_turn(state, "counselor", "You'll get an email confirmation.")
-    [speak] = speak_actions(policy.after_analysis(state, output(), 4, now(state)))
+    add_turn(state, "counselor", "You can change your mind on any award later.")
+    [speak] = speak_actions(policy.after_analysis(state, output(), 5, now(state)))
     assert "paid back" in speak.text
 
 
 def test_answered_question_resolves_its_flag():
     state = question_state()
     add_turn(state, "counselor", "Next, the portal.")
-    policy.after_analysis(state, output(), 3, now(state))
+    add_turn(state, "counselor", "Then an email confirmation.")
+    policy.after_analysis(state, output(), 4, now(state))
     add_turn(state, "counselor", "And no, work-study is a paycheck, never repaid.")
-    policy.after_analysis(state, output(answered=[("t2", "t4")]), 4, now(state))
-    assert state.parent_questions[0].answered_turn_id == "t4"
+    policy.after_analysis(state, output(answered=[("t2", "t5")]), 5, now(state))
+    assert state.parent_questions[0].answered_turn_id == "t5"
     assert state.flags[0].state == "resolved"
 
 
@@ -494,11 +498,12 @@ def test_action_on_an_unknown_flag_is_ignored_and_logged():
 def test_dismissed_unanswered_question_stays_in_the_recap_but_a_dismissed_misread_does_not():
     state = question_state()
     add_turn(state, "counselor", "Next, accept your awards in the portal.")
-    policy.after_analysis(state, output(), 3, now(state))
+    add_turn(state, "counselor", "You'll get an email confirmation.")
+    policy.after_analysis(state, output(), 4, now(state))
     assert state.flags[0].trigger == "UNANSWERED_QUESTION"
     click(state, "dismiss")
-    add_turn(state, "counselor", "You'll get an email confirmation.")
-    actions = policy.after_analysis(state, output(), 4, now(state))
+    add_turn(state, "counselor", "You can change your mind on any award later.")
+    actions = policy.after_analysis(state, output(), 5, now(state))
     assert not speak_actions(actions) and len(state.flags) == 1  # silenced, and not raised again
     policy.end_of_call(state, now(state))
     # The question itself was never answered, so the family still gets it as a follow-up.

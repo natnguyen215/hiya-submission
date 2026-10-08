@@ -278,7 +278,7 @@ build plan are logged under "Tuned defaults".
 
 | Setting | Planned default | Value | Why |
 |---|---|---|---|
-| UNANSWERED_AFTER_COUNSELOR_TURNS | 2 | 1 | The unanswered-question flag goes through the same ladder as every other flag, so the total wait before Beacon speaks is UNANSWERED_AFTER + ESCALATE_AFTER counselor turns. With 2 + 1 the counselor gets three turns to ignore a direct question, and the planted moment (d) (two non-answers, then the counselor answers) would come out `resolved`, not `spoken`. With 1 + 1: a private nudge after the first non-answer, Beacon asks after the second. Rejected: special-casing this trigger to skip the nudge. |
+| UNANSWERED_AFTER_COUNSELOR_TURNS | 2 | 2 (was 1 until the 2026-10-08 ladder changes) | The unanswered-question flag goes through the same ladder as every other flag, so the total wait before Beacon speaks is UNANSWERED_AFTER + ESCALATE_AFTER counselor turns. It was 1 (a card after the first non-answer, Beacon asks after the second), but in the control call the model credits an answer one analysis late, so a false "Maria asked a question that hasn't been answered yet" card appeared right after the counselor had answered, one counselor press away from a false interjection. With 2 + 1 that card can only appear after two counselor turns without an answer, and Beacon asks after the third. To keep planted moment d17 ending in `spoken`, the demo scripts gained one more counselor non-answer (d19a/s19a, "you can change your mind on any award..."). Rejected: special-casing this trigger to skip the nudge; raising ESCALATE_AFTER_COUNSELOR_TURNS (it would slow every misread too). |
 
 ## Tuning log
 

@@ -118,7 +118,7 @@
     "expect": {
       "trigger": "UNANSWERED_QUESTION",
       "outcome": "spoken",
-      "note": "Alex skips the question for two turns of portal logistics, so Beacon reminds him aloud. Alex then answers: it is earned as paychecks, never repaid, and not credited to the bill upfront."
+      "note": "Alex skips the question for three turns of portal logistics: the private card appears after the second, and Beacon reminds him aloud after the third. Alex then answers: it is earned as paychecks, never repaid, and not credited to the bill upfront."
     }
   },
   {
@@ -132,6 +132,12 @@
     "role": "counselor",
     "text": "Once you submit, you'll get an email confirmation.",
     "pause_before_ms": 400
+  },
+  {
+    "id": "d19a",
+    "role": "counselor",
+    "text": "And you can change your mind on any award until the first day of classes.",
+    "pause_before_ms": 500
   },
   {
     "id": "d20",
