@@ -87,10 +87,11 @@ Only the counselor window plays Beacon's voice by default, so one laptop does no
 The "Play Beacon audio here" switch changes this. Each browser remembers it per role.
 
 **Playing both roles yourself?** Beacon measures the pause before each turn. The pause runs from
-the end of the previous turn to the next push-to-talk press, so time spent switching windows
-looks like hesitation. For a one-person live demo, add `NOTABLE_GAP_MS=6000` to `.env` and
-restart the server. Remove that line for simulations: the planted 3-second pause needs the
-default of 2000.
+the end of the previous turn to the next push-to-talk press. For spoken turns, the server
+subtracts `PTT_REACTION_MS` (600 ms) for the time it takes to reach the key; typed and scripted
+turns keep their whole pause. Time spent switching windows still looks like hesitation. For a
+one-person live demo, add `NOTABLE_GAP_MS=6000` to `.env` and restart the server. Remove that
+line for simulations: the planted 3-second pause needs the default of 2000.
 
 ## Run a simulation
 

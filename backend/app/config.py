@@ -62,6 +62,9 @@ QUOTE_MIN_SIMILARITY = _setting("QUOTE_MIN_SIMILARITY", 0.85)
 
 # Signals and simulation
 NOTABLE_GAP_MS = _setting("NOTABLE_GAP_MS", 2000)
+# A voice turn's gap runs to the push-to-talk press, which includes the time to reach for the key.
+# Subtracted from voice gaps only; typed and script turns are unchanged.
+PTT_REACTION_MS = _setting("PTT_REACTION_MS", 600)
 SIM_MAX_WAIT_FOR_ANALYSIS_SECONDS = _setting("SIM_MAX_WAIT_FOR_ANALYSIS_SECONDS", 12.0)
 
 # Wake word: compare 1-3 word windows without spaces, using only the canonical spelling.

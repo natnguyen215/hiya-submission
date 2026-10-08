@@ -198,6 +198,9 @@ async def handle(room: Room, ws: WebSocket, role: ClientRole, message: BaseModel
                 return
             previous = room.state.turns[-1] if room.state.turns else None
             gap = max(0, message.started_at - previous.ended_at) if previous else None
+            if gap is not None and message.source == "voice":
+                # The press comes a moment after the person decides to speak; that isn't hesitation.
+                gap = max(0, gap - config.PTT_REACTION_MS)
             await add_turn(room, role, message.text, message.started_at, message.ended_at, gap, message.source)
         case SimTurn():
             if role != "observer":
