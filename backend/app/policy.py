@@ -131,6 +131,18 @@ def _active_flag_with_key(state: RoomState, issue_key: str) -> Flag | None:
     return next((f for f in state.flags if f.issue_key == issue_key and f.state != "dropped"), None)
 
 
+def _flag_for_same_moment(state: RoomState, trigger: str, turn_ids: list[str], seen: list[Turn]) -> Flag | None:
+    """An existing flag with the same trigger that cites the same parent turn. Told never to reuse
+    an issue_key, the LLM has re-raised an issue it already flagged (even one since resolved) as
+    "sap_not_explained_2" with identical evidence; the parent turn identifies the moment."""
+    parent_turns = {t.id for t in seen if t.role == "parent"}
+    cited = set(turn_ids) & parent_turns
+    for flag in state.flags:
+        if flag.state != "dropped" and flag.trigger == trigger and cited & set(flag.evidence_turn_ids):
+            return flag
+    return None
+
+
 def _add_new_flags(state: RoomState, out: AnalyzerOutput, seen: list[Turn], now_ms: int) -> list[Action]:
     actions: list[Action] = []
     latest = seen[-1].id
@@ -142,6 +154,11 @@ def _add_new_flags(state: RoomState, out: AnalyzerOutput, seen: list[Turn], now_
         duplicate = _active_flag_with_key(state, new.issue_key)
         if duplicate:
             actions.append(_log(now_ms, "flag", f"ignored [{new.issue_key}]: duplicate of {duplicate.id}", duplicate.id, latest))
+            continue
+        same = _flag_for_same_moment(state, new.trigger, new.evidence_turn_ids, seen)
+        if same:
+            message = f"ignored [{new.issue_key}]: same {new.trigger} moment as {same.id} (same parent turn)"
+            actions.append(_log(now_ms, "flag", message, same.id, latest))
             continue
         problem = evidence_problem(new.trigger, new.evidence_turn_ids, new.evidence_quotes, seen)
         if problem:

@@ -69,7 +69,11 @@ class GeminiLLM:
         except errors.APIError as exc:
             if exc.code == 429:
                 self._next_call_at = max(self._next_call_at, time.monotonic() + config.LLM_BACKOFF_SECONDS)
-                raise LLMError(f"rate limited (429); pausing LLM calls for {config.LLM_BACKOFF_SECONDS:.0f}s") from exc
+                # Google's message ends by naming the quota that ran out and when to retry. A
+                # per-day quota ("retry in 15h") won't come back by waiting 20 s; the log says so.
+                message = " ".join(str(exc.message or "").split())
+                detail = message[message.find("Quota exceeded") :][:300] if "Quota exceeded" in message else message[:300]
+                raise LLMError(f"rate limited (429); pausing LLM calls for {config.LLM_BACKOFF_SECONDS:.0f}s. {detail}") from exc
             raise LLMError(f"Gemini error {exc.code}: {exc.message}") from exc
 
         self.latencies_ms.append(int((time.monotonic() - started) * 1000))

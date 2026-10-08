@@ -1,7 +1,7 @@
 # Decisions
 
-Each entry: the decision, why, and the main alternative rejected. Changes to the brief's §5.6
-defaults are logged under "Tuned defaults".
+Each entry: the decision, why, and the main alternative rejected. Changes to the defaults in the original
+build plan are logged under "Tuned defaults".
 
 ## Name
 
@@ -23,6 +23,11 @@ defaults are logged under "Tuned defaults".
   into whatever Python is active.
 - **`httpx2` instead of `httpx` in requirements.** Starlette 1.7's TestClient warns that `httpx` is
   deprecated for it. (`httpx` is still installed because `google-genai` uses it.)
+- **The browser check (`eval/browser_check.js`) is not a dependency.** Playwright and its
+  browser are a large download that `tasks.py install` would force on everyone. The check is
+  optional, so its header installs Playwright into an ignored `.pw/` folder. It is the only
+  check of the React views, the card buttons and what each role sees, and its run against Gemini
+  found the re-raised SAP card (see the tuning log).
 - **`pytest-timeout` (60 s).** A WebSocket smoke test that waits for a message that never comes
   would otherwise block forever; with the timeout it fails with a stack trace.
 - **`tasks.py dev` stops Vite with `taskkill /T` on Windows.** `terminate()` only ends the
@@ -38,8 +43,12 @@ defaults are logged under "Tuned defaults".
   projects. `low` thinking trades a little latency for better judgment on severity and
   resolution, which is where the analyzer is most likely to be wrong. Both are env overrides.
   Rejected: `gemini-3.6-flash` (default `medium` thinking, slower) as the default; it is the
-  documented fallback with a separate quota bucket. Free-tier RPM/RPD could not be verified (Google
-  only shows them in AI Studio now).
+  documented fallback with a separate quota bucket. Free-tier limits, measured on 2026-10-08: the
+  429 response names the quota, and for this model it is **500 requests per day** per project
+  (third-party pages said about 1,500), resetting at midnight Pacific. A simulated demo call costs
+  about 35 requests (one analysis per parent turn and per counselor turn with something open, plus
+  summons and the recap); one run of every eval script costs about 100. Calls are spaced 4 s
+  apart; at that pace a few per-minute 429s still occurred, which the backoff absorbs.
 - **`response_json_schema=Model.model_json_schema()`, then `Model.model_validate_json`.** The
   current SDK sends the JSON schema as-is; pydantic does the validation we rely on. Rejected:
   `response_schema=Model` (the SDK converts it to its own schema format, which mishandles some
@@ -60,6 +69,10 @@ defaults are logged under "Tuned defaults".
 - **Response cache lives in `llm.py`, keyed by model + thinking level + schema + prompt.** Only
   the eval turns it on, and only valid responses are cached, so "retry once on invalid output"
   really asks again. Rejected: caching in the eval (it would need to know about prompts).
+- **The eval stops at a daily-quota 429 and reports the runs it finished.** A per-minute 429 is
+  retried by the backoff, but "retry in 15h" means every later request fails too; continuing
+  would only produce a report of empty outputs at 20 s per failed request. The 429's own text
+  (which names the quota) is kept in the error, so the decision log says which limit was hit.
 - **Eval latency is network time only** (`GeminiLLM.latencies_ms`), not the wait for a rate-limit
   slot, which would otherwise dominate every number.
 
@@ -97,6 +110,14 @@ defaults are logged under "Tuned defaults".
   that rule lives on the trigger in `triggers.py`, so a new trigger evidenced by the counselor's
   words only needs `needs_parent_evidence=False`. Known limitation: a one-word insertion like
   "not" can still pass; the gate stops invented quotes, not every paraphrase.
+- **Dedupe also by moment: same trigger + same parent turn = same flag.** The prompt says never
+  to reuse an `issue_key`, and Gemini obeyed by re-raising a resolved SAP flag as
+  `sap_not_explained_2` with identical evidence, which then reached the recap as a follow-up
+  about something the counselor had explained (seen in the real-Gemini browser run and in round
+  0). Code now ignores a new flag whose trigger matches an existing flag's and which cites one
+  of its parent turns, logged as "same ... moment as fN". Trade-off: two different misreads of
+  the same kind in one parent turn become one card. Rejected: a stronger prompt line alone (the
+  model already had one) and fuzzy-matching issue keys (opaque).
 - **Dropped flags are kept (state `dropped`) so the observer can show why**, but they don't count
   for dedupe, so a later, well-evidenced flag with the same `issue_key` can still be raised.
 - **Skip the LLM after a counselor turn when no flag is nudged and no question is open.** While
@@ -197,7 +218,14 @@ defaults are logged under "Tuned defaults".
 - **Text-only simulation compresses time.** The cooldown is in wall-clock seconds, so a very fast
   silent run can push a second interjection into the 20 s cooldown and then to the recap. Runs
   with audio, live calls, and the eval (virtual clock based on words spoken) keep real
-  conversational timing. Rejected: a turn-based cooldown (the brief specifies seconds).
+  conversational timing. Rejected: a turn-based cooldown (the original plan specifies seconds).
+- **Known limitation: one person playing both roles fakes hesitation.** `gap_ms` runs from the
+  end of the previous turn to the next push-to-talk press, so in a solo live demo the time spent
+  switching windows reads as a "LONG PAUSE" on nearly every turn and can produce false
+  `UNEXPLAINED_JARGON` flags. Mitigation, documented in the README: `NOTABLE_GAP_MS=6000` in
+  `.env` for solo live demos, the default 2000 for simulations (the planted 3-second pause needs
+  it). Rejected: measuring from the first recognized word or detecting window focus; a real call
+  has two people and doesn't have this problem, so it isn't worth code.
 - **`sim_turn` carries the script's `gap_ms`.** Real elapsed time in a simulation includes waiting
   for analysis, which would fake hesitations everywhere. Only the observer may submit scripted
   turns for another persona. A simulation timeout raises an error instead of silently advancing.
@@ -231,13 +259,72 @@ defaults are logged under "Tuned defaults".
 - **Demo script trimmed to 35 turns (~600 words).** The first draft ran about 4.5 minutes; the
   clear stretch was cut from 6 to 4 turns and several lines shortened. Planted moments unchanged.
 
+- **Eval scripts beyond the demo** (2026-10-08): `demo_call_stt_noise` (the demo as Chrome
+  would transcribe it: lowercase, no question marks, numbers in mixed forms, a few mis-hearings
+  like "pal grant" and "a sea average"), `adversarial_clean` (correct restatements, jargon
+  explained at once, clarifying questions, "mm-hm" after logistics, a long pause before a
+  substantive reply), `live_regressions` (the exact "$31,500" → "so it's covered" exchange after
+  junk mic-check turns, and the broad summons that timed out or ran long), and `summon_checks`
+  (one question per glossary family, award-letter facts, two questions the documents can't
+  answer). `--runs N` repeats each script, because one passing run of an LLM proves little. A
+  test fails if any analyzer prompt example shares a six-word phrase with any script line.
+- **Glossary lines don't cite studentaid.gov individually.** The glossary goes into every prompt;
+  a URL per line costs tokens on every call, invites Beacon to read a link aloud, and would
+  require re-running the whole eval on deadline day. The glossary header names studentaid.gov as
+  the official reference, and the definitions avoid loan limits and interest rates, which change
+  yearly. A line-by-line check against studentaid.gov is still open.
+
 ## Tuned defaults
 
-| Setting | Brief default | Value | Why |
+| Setting | Planned default | Value | Why |
 |---|---|---|---|
 | UNANSWERED_AFTER_COUNSELOR_TURNS | 2 | 1 | The unanswered-question flag goes through the same ladder as every other flag, so the total wait before Beacon speaks is UNANSWERED_AFTER + ESCALATE_AFTER counselor turns. With 2 + 1 the counselor gets three turns to ignore a direct question, and the planted moment (d) (two non-answers, then the counselor answers) would come out `resolved`, not `spoken`. With 1 + 1: a private nudge after the first non-answer, Beacon asks after the second. Rejected: special-casing this trigger to skip the nudge. |
 
 ## Tuning log
+
+### 2026-10-08: repeated runs and question tracking
+
+- **Round 0** (prompts as of the 2026-10-07 entry below; 3 runs of six scripts, 305 requests, no
+  cache): demo_call 7/8 moments in every run (all 8 in 2/3 runs); demo_call_stt_noise 7/8 (all 8
+  in 1/3); control 0, 0, 1 flags and 0 spoken (pass); adversarial_clean 0 flags and 0 spoken in
+  every run (pass); live_regressions: the "so it's covered" nudge in 2/3 runs and both broad
+  summons answered in 18–23 words in 3/3; summon_checks 8/10 questions in every run. Analyzer
+  latency mean 1,460 ms, max 5,650 ms; summons mean 929 ms, max 1,750 ms. 14 requests failed
+  with per-minute 429s, and they explain every summon_checks miss and the live_regressions miss
+  (a 429 on the analysis of the "so it's covered" turn, so the next analysis already saw the
+  counselor's correction). The remaining misses were real, both in question tracking:
+  - d17 (run 1) and s17 (run 3): the analyzer reported the counselor's next-steps turn ("you'll
+    accept the awards in the student portal") as answering "does the work-study money have to
+    be paid back?", so the unanswered-question flag never escalated.
+  - s17 (run 2): with no question mark in the transcript, the question was opened one analysis
+    late, so the ladder started late and the scripted answer arrived before Beacon could ask.
+- **Round 1 prompt change:** `questions_opened` says speech recognition drops question marks and
+  a question must be reported in the output for its own turn; `questions_answered` says a turn
+  that moves on to another topic does not answer a question, even right after it. New few-shot
+  Example G (a housing-deposit question without "?", then the counselor moves on) shows both;
+  its content is unrelated to the scripts.
+- **Round 1 result:** the free tier's daily quota (500 requests) ran out partway through round 1,
+  so its numbers were discarded. The rest of the verification used a second key, lent by a
+  friend, on the same model.
+- **Real-Gemini browser run (Playwright, 20/20 checks):** the live "$31,500" → "so it's covered"
+  exchange produced a card; "I'll clarify" held Beacon for one counselor turn, then it asked;
+  "Not an issue" was never spoken; the broad summon was answered in 1.3 s; the demo simulation
+  hit every scripted beat and its recap had 0 unverified numbers, correct grant/loan/work-study
+  split and the July 15 deadline. One defect: the recap's only follow-up asked about SAP, which
+  the counselor had explained. Gemini had re-raised the resolved SAP flag as
+  `sap_not_explained_2` with identical evidence (round 0 shows `sap_not_explained_new` too).
+  Fixed in code, not the prompt: dedupe by moment (see "Perceive vs. decide").
+- **Round 2** (both changes; 3 runs of six scripts, 307 requests, no cache, 0 errors; calls spaced
+  5 s apart via `MIN_SECONDS_BETWEEN_LLM_CALLS=5` so per-minute 429s don't hide perception
+  results; the app default stays 4 s): **demo_call 8/8 in 3/3 runs; demo_call_stt_noise 8/8 in
+  3/3; control 1 flag and 0 spoken in every run (pass); adversarial_clean 0 flags, 0 spoken
+  (pass); live_regressions 3/3 in 3/3 (the "so it's covered" nudge, both broad summons in at most
+  23 words); summon_checks 10/10 in 3/3**, out-of-documents questions declined and deferred to the
+  counselor. The new dedupe ignored a re-raised SAP flag 4 times across the demo runs. The
+  control call's one flag per run is a private unanswered-question nudge that resolved on the
+  next analysis (the model credits an answer one analysis late), never spoken. Analyzer latency
+  mean 1,451 ms, max 6,377 ms; summons mean 1,449 ms, max 11,384 ms (under the 25 s budget).
+  Targets met; tuning stopped after this round.
 
 ### 2026-10-07: stated conclusions and broad summons
 

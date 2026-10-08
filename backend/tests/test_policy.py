@@ -90,6 +90,24 @@ def test_same_issue_key_is_ignored_the_second_time():
     assert "duplicate of f1" in log_text(actions)
 
 
+def test_same_moment_under_a_new_key_is_ignored_even_after_it_was_resolved():
+    # Seen with Gemini: a resolved jargon flag came back as "..._2" with identical evidence.
+    state = covered_state()
+    add_turn(state, "counselor", "To be clear, $14,000 of that is loans.")
+    policy.after_analysis(state, output(resolved=["f1"]), 3, NOW)
+    again = new_flag(["t1", "t2"], ["So it's covered"], key="aid_package_includes_loans_2")
+    actions = policy.after_analysis(state, output([again]), 3, NOW)
+    assert len(state.flags) == 1
+    assert "same MISREAD_TERM moment as f1" in log_text(actions)
+
+
+def test_a_different_trigger_on_the_same_turn_is_still_raised():
+    state = covered_state()
+    jargon = new_flag(["t1", "t2"], ["So it's covered"], key="aid_package_jargon", trigger="UNEXPLAINED_JARGON")
+    policy.after_analysis(state, output([jargon]), 2, NOW)
+    assert [f.trigger for f in state.flags] == ["MISREAD_TERM", "UNEXPLAINED_JARGON"]
+
+
 # ---------------------------------------------------------------- escalation ladder
 
 
@@ -170,7 +188,7 @@ def test_recap_severity_is_never_spoken():
 
 def test_one_interjection_at_a_time():
     state = make_state(("counselor", "It's $31,500 and SAP applies."), ("parent", "So it's covered. Okay."))
-    flags = [new_flag(["t2"], ["So it's covered"], key="a"), new_flag(["t2"], ["Okay"], key="b")]
+    flags = [new_flag(["t2"], ["So it's covered"], key="a"), new_flag(["t2"], ["Okay"], key="b", trigger="UNEXPLAINED_JARGON")]
     policy.after_analysis(state, output(flags), 2, NOW)
     add_turn(state, "counselor", "Moving on.")
     actions = policy.after_analysis(state, output(), 3, NOW)

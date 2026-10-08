@@ -2,12 +2,15 @@
 handling, and the recap number check."""
 
 import asyncio
+import json
+import re
 
 from helpers import make_state, output
 
 from backend.app import analyzer, config
 from backend.app.llm import FakeLLM, LLMError
 from backend.app.models import ParentQuestion, Recap, RecapFollowUp, RecapItem, SummonAnswer
+from backend.app.triggers import TRIGGERS
 
 
 def test_prompt_includes_triggers_examples_and_pauses():
@@ -93,3 +96,48 @@ def test_open_issues_the_recap_left_out_are_added():
     state.parent_questions.append(ParentQuestion(text="Is that per year?", asked_turn_id="t1"))
     assert analyzer.add_missing_follow_ups(recap, state) == ["t1"]
     assert recap.follow_ups[-1].question == "Is that per year?"
+
+
+def test_every_llm_trigger_is_rendered_word_for_word():
+    prompt = analyzer.build_analysis_prompt(make_state(("parent", "Hi.")))
+    for trigger in TRIGGERS:
+        if trigger.detected_by != "llm":
+            continue
+        assert f"{trigger.name}: {trigger.description}" in prompt
+        for example in trigger.positive_examples:
+            assert f"  Flag: {example}" in prompt
+        for example in trigger.negative_examples:
+            assert f"  Do not flag: {example}" in prompt
+
+
+def test_prompt_frames_flags_as_private_cards_not_interruptions():
+    prompt = analyzer.build_analysis_prompt(make_state(("parent", "Hi.")))
+    assert "A flag first becomes a private card that only the counselor sees." in prompt
+    assert "Do not raise a new flag for an issue the counselor dismissed" in prompt
+    assert "When in doubt" not in prompt and "false alarm" not in prompt.lower()
+
+
+def _six_word_phrases(text: str) -> set[str]:
+    words = re.findall(r"[a-z0-9$]+", text.lower().replace("’", "'").replace("'", ""))
+    return {" ".join(words[i : i + 6]) for i in range(len(words) - 5)}
+
+
+def test_prompt_examples_do_not_reuse_script_lines():
+    # The eval would only measure memorization if the prompt's examples copied the scripts.
+    template = (config.PROMPTS_DIR / "analyzer.txt").read_text(encoding="utf-8").split("## Documents")[0]
+    examples = [e for t in TRIGGERS if t.detected_by == "llm" for e in t.positive_examples + t.negative_examples]
+    prompt_phrases = _six_word_phrases(template + "\n".join(examples))
+    for path in config.SCRIPTS_DIR.glob("*.json"):
+        for line in json.loads(path.read_text(encoding="utf-8")):
+            shared = prompt_phrases & _six_word_phrases(line["text"])
+            assert not shared, f"{path.name} {line['id']} shares {shared} with the analyzer prompt"
+
+
+def test_summon_prompt_is_filled_and_limits_broad_answers():
+    state = make_state(("parent", "Beacon, what is all the info that you have"))
+    fake = FakeLLM(lambda prompt, schema: SummonAnswer(answer="Ok.", doc_refs=["G1", "X9"], answered_from_documents=True))
+    answer = asyncio.run(analyzer.answer_summon(fake, state, state.turns[0]))
+    assert answer.doc_refs == ["G1"]  # an id that isn't a document line is removed
+    prompt = fake.prompts[0]
+    assert "{{" not in prompt and "Beacon, what is all the info that you have" in prompt
+    assert "one-sentence overview" in prompt and "never more than 25" in prompt

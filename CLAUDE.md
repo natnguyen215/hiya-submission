@@ -20,7 +20,7 @@ DECISIONS.md, and LLM prompts in `backend/prompts/*.txt`, never in Python string
    queue, timing). Start at `add_turn()`.
 4. `backend/app/analyzer.py` + `backend/prompts/analyzer.txt`: what the LLM is asked to perceive.
 5. `DECISIONS.md`: why things are the way they are, including deliberate deviations from the
-   original brief and the tuning log. Check it before "fixing" something that looks odd.
+   original build plan and the tuning log. Check it before "fixing" something that looks odd.
 
 ## The design rule: the LLM perceives, Python decides
 
@@ -28,7 +28,7 @@ Gemini never makes Beacon speak. `analyzer.analyze()` returns an `AnalysisResult
 is the validated JSON (`AnalyzerOutput` in `models.py`): candidate flags with exact quotes, which
 open flags the counselor resolved, which parent questions were asked and answered. It never
 raises; on failure `.output` is empty and `.error` is set. `policy.after_analysis()` decides what to do with it:
-evidence gate, dedupe by `issue_key`, severity (`recap` flags never interrupt), the escalation
+evidence gate, dedupe by `issue_key` and by moment (same trigger + parent turn), severity (`recap` flags never interrupt), the escalation
 ladder (nudge → resolved / spoken / recap / dismissed), staleness, cooldown, and code-counted
 unanswered questions. It returns actions (`SendCard`, `UpdateFlag`, `SpeakLine`, `LogEntry`) that
 `rooms.execute()` carries out. `policy.py` does no I/O, reads no clock (callers pass `now_ms`) and
@@ -106,9 +106,10 @@ its audio) acks instantly.
 | `backend/app/docs.py` | loads `data/award_letter.md` and `data/glossary.md`; line ids like `L14`, `G9` |
 | `backend/app/main.py` | FastAPI: `/api/documents`, `/api/scripts/{name}`, `/ws`, serves `web/dist` |
 | `backend/prompts/` | `analyzer.txt`, `summon.txt`, `recap.txt` |
-| `backend/tests/` | `test_policy.py` (most behavior, including the counselor's card buttons; `helpers.py` builds states and fake outputs), `test_smoke.py` (three WebSocket clients + FakeLLM), `test_rooms.py` (turn-taking and speech-queue regressions), `test_analyzer.py`, `test_wakeword.py` |
-| `eval/run.py` | offline eval over the scripts in its `SCRIPTS` list (`demo_call`, `control_call`; add a new script there), text only, virtual clock, no recap → `eval_results.md` |
-| `data/scripts/` | `demo_call.json` (planted moments, each with an `expect`), `control_call.json` (clean call) |
+| `backend/tests/` | `test_policy.py` (most behavior, including the counselor's card buttons; `helpers.py` builds states and fake outputs), `test_smoke.py` (three WebSocket clients + FakeLLM), `test_rooms.py` (turn-taking and speech-queue regressions), `test_analyzer.py` (prompt rendering; prompt examples must not reuse script lines), `test_wakeword.py`, `test_scripts.py` (every script well-formed and registered in the eval) |
+| `eval/browser_check.js` | optional Playwright check of the UI against a running server; Playwright is installed outside the repo (header says how) |
+| `eval/run.py` | offline eval over the scripts in its `SCRIPTS` list (add a new script there and to `SCRIPTS` in `ObserverView.tsx`; `CLEAN_SCRIPTS` get the "≤1 flag, 0 spoken" target), text only, virtual clock, no recap, `--runs N` repeats each script → `eval_results.md` |
+| `data/scripts/` | `demo_call.json` (planted moments, each with an `expect`), `demo_call_stt_noise.json` (the same call as Chrome might transcribe it), `control_call.json` and `adversarial_clean.json` (clean calls), `live_regressions.json` (failures seen in live testing), `summon_checks.json` (questions to Beacon; `expect.outcome` "declined" = not in the documents) |
 | `web/src/` | React: `useRoom.ts` (WebSocket hook), `CallView.tsx`, `ObserverView.tsx`, `Recap.tsx`, `components.tsx`, `speech.ts` (push-to-talk + TTS), `simulate.ts` (script runner) |
 | `tasks.py` / `Makefile` | task runner; the Makefile only calls `tasks.py` |
 | `PLAN.md`, `DECISIONS.md`, `WRITEUP.md`, `DEMO.md` | plan + milestone checklist; decision and tuning log; challenge write-up (its "AI tools used" section is a placeholder for the author); demo video run-of-show |
@@ -119,24 +120,26 @@ its audio) acks instantly.
   pass eval flags as `make eval ARGS=--cache`). `tasks.py` always uses `./.venv`, so run `install`
   first (it also needs Node 20.19+ on the 20.x line, or 22.12+, for `npm install` in `web/`).
 - Without the task runner: `pip install -r requirements.txt`, then from the repo root
-  `python -m pytest -q` (pytest.ini sets `pythonpath`) and `python -m eval.run [--cache] [--script demo_call]`.
+  `python -m pytest -q` (pytest.ini sets `pythonpath`) and `python -m eval.run [--cache] [--script demo_call] [--runs 3]`.
 - `run` serves everything at http://localhost:8000: `/call?room=demo&role=counselor`,
   `/call?room=demo&role=parent`, `/observer?room=demo` (needs `build` first). `dev` runs uvicorn
   with reload on :8000 plus Vite on :5173.
 - The eval needs `GEMINI_API_KEY` in `.env` (copy `.env.example`). `--cache` replays responses from
   `.cache/` (not shipped); any request that fails puts a warning at the top of `eval_results.md`.
 - On Windows, set `PYTHONIOENCODING=utf-8` before printing decision-log text (it contains "→").
-- Tests: all pass, no network, about 2 s. The frontend has no automated tests; it was checked by
-  hand in Chromium during the build.
+- Tests: all pass, no network, about 2 s. The frontend has no unit tests; `eval/browser_check.js`
+  drives it in Chromium (24/24 checks against a fake LLM, 20/20 against Gemini on 2026-10-08).
 
 ## Status
 
-The uncached Gemini eval after the Beacon rename passed **8/8 planted moments** on 2026-10-07
-(`gemini-3.5-flash-lite`, thinking `low`), with 36 network requests and no API errors. The control
-call passed with one private nudge that resolved and no spoken interjections. See `eval_results.md`
-and DECISIONS.md's "Tuning log" for details and the earlier stand-in checks. Live Chrome testing
-revealed the old name's transcription problem; the renamed wake word still needs the README's
-manual microphone/playback check. The stretch "hybrid demo mode" was not built.
+Latest Gemini eval (round 2, 2026-10-08, 3 runs of six scripts, `gemini-3.5-flash-lite`, thinking
+`low`, 0 errors): demo_call and demo_call_stt_noise 8/8 planted moments in every run; control
+and adversarial clean calls ≤1 private nudge and 0 spoken in every run; live_regressions and
+summon_checks pass in every run. See `eval_results.md` and DECISIONS.md's "Tuning log". A
+Playwright run against real Gemini passed 20/20 browser checks (live card buttons, summon, a full
+demo simulation and its recap). The free tier allows **500 requests per day** for this model; a
+full `--runs 3` eval costs about 300. The renamed wake word still needs the README's manual
+microphone/playback check. The stretch "hybrid demo mode" was not built.
 
 ## Gotchas
 
@@ -189,7 +192,7 @@ manual microphone/playback check. The stretch "hybrid demo mode" was not built.
 - **Add an LLM-detected trigger:** add a `Trigger` to `triggers.py` with `detected_by="llm"` (plus
   name, description, positive and negative examples, and `needs_parent_evidence`). No `models.py`/`types.ts`/frontend change is needed:
   trigger names are plain strings. Check existing descriptions for overlap (dedupe compares
-  `issue_key` only, so two triggers can flag one moment twice). Trigger examples go into the prompt
+  `issue_key`, and trigger + parent turn, so two *different* triggers can flag one moment twice). Trigger examples go into the prompt
   verbatim, so like the few-shot examples in `analyzer.txt` they must not reuse demo-script content.
   Consider a few-shot example in `analyzer.txt`. Add a test in `test_policy.py`
   (`helpers.new_flag(..., trigger=...)`), check `data/scripts/*.json` `expect.trigger` labels, and
@@ -212,6 +215,7 @@ raw output under "data"; the same entries are in `logs/<room>-<time>.jsonl`, whi
 | Log text | Meaning | Emitted at |
 |---|---|---|
 | `→ resolved: the counselor clarified it` | the LLM judged it resolved | `policy.after_analysis` |
+| `ignored [key]: same … moment as fN` | the LLM re-raised a flagged moment under a new key | `policy._add_new_flags` |
 | `due, deferred: newer turns not analyzed yet` | a turn arrived during the LLM call | `policy._run_ladder` |
 | `due, waiting: cooldown Ns left` | 20 s cooldown since the last interjection | `policy._run_ladder` |
 | `due, waiting: one interjection at a time` | several flags were due at once; the oldest was queued, the rest wait (and may go stale) | `policy._run_ladder` |

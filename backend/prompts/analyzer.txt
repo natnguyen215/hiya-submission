@@ -25,8 +25,8 @@ Families in these calls often misunderstand and rarely say so: they nod along ("
 
 - notes (write this first): one or two sentences on what happened in the latest turns and why you did or did not flag anything.
 - resolved_flag_ids: ids of Existing flags with state "nudged" that the counselor has since corrected or explained, in a turn after the flag's evidence. It counts when the counselor fixes the core of the misunderstanding (the part that matters for the family's decisions), even if not every detail you mentioned is covered. A counselor answering a BEACON question counts. Do not list flags in any other state.
-- questions_opened: genuine information-seeking questions the parent asked the counselor that are not already listed under Tracked questions. Give the parent turn id and the question copied word for word from that turn (only the question sentence). Code checks it against the turn, and Beacon may read it aloud as a quote. Skip questions addressed to Beacon by name, rhetorical questions, and requests to repeat.
-- questions_answered: check every UNANSWERED Tracked question against each counselor turn after it, including the newest turn. If a counselor turn answers it, even briefly ("Right, loans total..."), report that turn. Also report questions you open in this same output if a later counselor turn already answers them.
+- questions_opened: genuine information-seeking questions the parent asked the counselor that are not already listed under Tracked questions. Give the parent turn id and the question copied word for word from that turn (only the question sentence). Code checks it against the turn, and Beacon may read it aloud as a quote. The transcript comes from speech recognition, which often drops question marks and capitals: a sentence worded as a question ("does the deposit come back") is a question without a "?". Report it in the output for the turn where it was asked. Skip questions addressed to Beacon by name, rhetorical questions, and requests to repeat.
+- questions_answered: check every UNANSWERED Tracked question against each counselor turn after it, including the newest turn. A counselor turn answers a question only if it gives the information asked for, even briefly ("Right, loans total..."); then report that turn. A turn that moves on to another topic (next steps, logistics, a new section) does not answer it, even when it comes right after the question. Also report questions you open in this same output if a later counselor turn already answers them.
 - Use empty lists when there is nothing to report.
 
 ## Examples (a different family and school; do not copy their content)
@@ -71,6 +71,12 @@ t20 COUNSELOR [after 400 ms]: Cedar Vale College's financial aid offer comes to 
 t21 PARENT [after 500 ms]: Perfect, so college won't cost us anything.
 Output:
 {"notes": "Parent concluded college will cost nothing from the aid total. The documents show repayable loans and costs beyond the offer, so this wrong conclusion affects what the family pays and borrows even though no term was misused.", "new_flags": [{"trigger": "MISREAD_TERM", "issue_key": "aid_offer_means_no_family_cost", "evidence_turn_ids": ["t20", "t21"], "evidence_quotes": ["financial aid offer comes to $27,000 this year", "so college won't cost us anything"], "counselor_card": "The parent seems to think the aid offer means college will cost the family nothing.", "severity": "interrupt", "suggested_clarification": "The offer includes loans to repay and work-study earnings, and it does not cover the full yearly cost.", "spoken_line": "Quick check for the family: what will they still need to pay or repay with this offer?", "doc_refs": []}], "resolved_flag_ids": [], "questions_opened": [], "questions_answered": []}
+
+Example G: a question without a question mark, and the counselor moves on without answering.
+t30 PARENT [after 600 ms]: okay that helps um is the housing deposit refundable
+t31 COUNSELOR [after 400 ms]: Next, let's look at the orientation dates on page two.
+Output:
+{"notes": "Parent asked whether the housing deposit is refundable; speech recognition left out the question mark. The counselor moved on to orientation dates, which does not answer it.", "new_flags": [], "resolved_flag_ids": [], "questions_opened": [{"turn_id": "t30", "text": "is the housing deposit refundable"}], "questions_answered": []}
 
 ## Documents
 

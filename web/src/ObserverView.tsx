@@ -7,7 +7,15 @@ import { speak, stopSpeaking, useBeaconAudioSetting } from "./speech";
 import type { DocLine, LogEntry, ScriptTurn } from "./types";
 import { useRoom } from "./useRoom";
 
-const SCRIPTS = ["demo_call", "control_call"];
+// The same scripts the offline eval runs (eval/run.py's SCRIPTS); the demo video uses demo_call.
+const SCRIPTS = [
+  "demo_call",
+  "control_call",
+  "demo_call_stt_noise",
+  "adversarial_clean",
+  "live_regressions",
+  "summon_checks",
+];
 
 interface Progress {
   text: string;

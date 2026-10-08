@@ -1,0 +1,77 @@
+[
+  {
+    "id": "r01",
+    "role": "counselor",
+    "text": "testing testing",
+    "pause_before_ms": 4200
+  },
+  {
+    "id": "r02",
+    "role": "parent",
+    "text": "polar",
+    "pause_before_ms": 5100
+  },
+  {
+    "id": "r03",
+    "role": "parent",
+    "text": "be",
+    "pause_before_ms": 3800
+  },
+  {
+    "id": "r04",
+    "role": "counselor",
+    "text": "Daniel's total aid package is $31,500",
+    "pause_before_ms": 4600
+  },
+  {
+    "id": "r05",
+    "role": "parent",
+    "text": "Oh, thank goodness, so it's covered",
+    "pause_before_ms": 3900,
+    "expect": {
+      "trigger": "MISREAD_TERM",
+      "outcome": "resolved",
+      "note": "The exact live exchange the analyzer once judged a 'minor/unconfirmed inference'. It must become a private nudge; the counselor's next turn then clarifies it."
+    }
+  },
+  {
+    "id": "r06",
+    "role": "counselor",
+    "text": "Well, not all of it. $14,000 of that is loans you'd pay back, and $2,500 is work-study he earns at a campus job.",
+    "pause_before_ms": 4400
+  },
+  {
+    "id": "r07",
+    "role": "parent",
+    "text": "Oh, okay. So the loans get paid back later.",
+    "pause_before_ms": 3600
+  },
+  {
+    "id": "r08",
+    "role": "parent",
+    "text": "Beacon, what is all the info that you have",
+    "pause_before_ms": 4800,
+    "expect": {
+      "trigger": "SUMMON",
+      "outcome": "answered",
+      "note": "The broad summon that timed out at 15 s live. It must be answered within SUMMON_TIMEOUT_SECONDS, in 25 words or fewer, with a one-sentence overview."
+    }
+  },
+  {
+    "id": "r09",
+    "role": "counselor",
+    "text": "Good question. We can go through any part of the letter you want.",
+    "pause_before_ms": 4100
+  },
+  {
+    "id": "r10",
+    "role": "parent",
+    "text": "Beacon, can you explain everything on the award letter?",
+    "pause_before_ms": 5200,
+    "expect": {
+      "trigger": "SUMMON",
+      "outcome": "answered",
+      "note": "Another broad request; one live answer ran to 28 words, over the 25-word limit."
+    }
+  }
+]
