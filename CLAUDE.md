@@ -131,17 +131,14 @@ its audio) acks instantly.
 
 ## Status
 
-Latest full Gemini eval (round 0, 2026-10-08, 3 runs of six scripts, `gemini-3.5-flash-lite`,
-thinking `low`): demo_call 7/8 planted moments in every run (8/8 in 2/3 runs); control and
-adversarial clean calls passed in every run (≤1 private nudge, 0 spoken); the remaining misses
-were per-minute 429s and two question-tracking errors. The round-1 prompt fix for those
-(DECISIONS.md "Tuning log") was committed, but its rerun was cut short when the free tier's
-**500-requests-per-day** quota ran out; `eval_results.md` still shows round 0. Rerun after the
-daily reset: `python -m eval.run --runs 3` costs about 300 requests, `--runs 1` about 100. A
-browser end-to-end check (Playwright, fake LLM) passed every UI check: card buttons, blur after
-click, visibility rules, every script from the observer's dropdown, recap in every tab. The
-renamed wake word still needs the README's manual microphone/playback check. The stretch
-"hybrid demo mode" was not built.
+Latest Gemini eval (round 2, 2026-10-08, 3 runs of six scripts, `gemini-3.5-flash-lite`, thinking
+`low`, 0 errors): demo_call and demo_call_stt_noise 8/8 planted moments in every run; control
+and adversarial clean calls ≤1 private nudge and 0 spoken in every run; live_regressions and
+summon_checks pass in every run. See `eval_results.md` and DECISIONS.md's "Tuning log". A
+Playwright run against real Gemini passed 20/20 browser checks (live card buttons, summon, a full
+demo simulation and its recap). The free tier allows **500 requests per day** for this model; a
+full `--runs 3` eval costs about 300. The renamed wake word still needs the README's manual
+microphone/playback check. The stretch "hybrid demo mode" was not built.
 
 ## Gotchas
 

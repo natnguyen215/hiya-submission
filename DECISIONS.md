@@ -298,9 +298,28 @@ defaults are logged under "Tuned defaults".
   that moves on to another topic does not answer a question, even right after it. New few-shot
   Example G (a housing-deposit question without "?", then the counselor moves on) shows both;
   its content is unrelated to the scripts.
-- **Round 1 result:** the free tier's daily quota (500 requests) ran out partway through round 1.
-  See `eval_results.md` for the runs that finished; the full rerun is scheduled after the quota
-  resets.
+- **Round 1 result:** the free tier's daily quota (500 requests) ran out partway through round 1,
+  so its numbers were discarded. The rest of the verification used a second key, lent by a
+  friend, on the same model.
+- **Real-Gemini browser run (Playwright, 20/20 checks):** the live "$31,500" → "so it's covered"
+  exchange produced a card; "I'll clarify" held Beacon for one counselor turn, then it asked;
+  "Not an issue" was never spoken; the broad summon was answered in 1.3 s; the demo simulation
+  hit every scripted beat and its recap had 0 unverified numbers, correct grant/loan/work-study
+  split and the July 15 deadline. One defect: the recap's only follow-up asked about SAP, which
+  the counselor had explained. Gemini had re-raised the resolved SAP flag as
+  `sap_not_explained_2` with identical evidence (round 0 shows `sap_not_explained_new` too).
+  Fixed in code, not the prompt: dedupe by moment (see "Perceive vs. decide").
+- **Round 2** (both changes; 3 runs of six scripts, 307 requests, no cache, 0 errors; calls spaced
+  5 s apart via `MIN_SECONDS_BETWEEN_LLM_CALLS=5` so per-minute 429s don't hide perception
+  results; the app default stays 4 s): **demo_call 8/8 in 3/3 runs; demo_call_stt_noise 8/8 in
+  3/3; control 1 flag and 0 spoken in every run (pass); adversarial_clean 0 flags, 0 spoken
+  (pass); live_regressions 3/3 in 3/3 (the "so it's covered" nudge, both broad summons in at most
+  23 words); summon_checks 10/10 in 3/3**, out-of-documents questions declined and deferred to the
+  counselor. The new dedupe ignored a re-raised SAP flag 4 times across the demo runs. The
+  control call's one flag per run is a private unanswered-question nudge that resolved on the
+  next analysis (the model credits an answer one analysis late), never spoken. Analyzer latency
+  mean 1,451 ms, max 6,377 ms; summons mean 1,449 ms, max 11,384 ms (under the 25 s budget).
+  Targets met; tuning stopped after this round.
 
 ### 2026-10-07: stated conclusions and broad summons
 
