@@ -1,0 +1,118 @@
+[
+  {
+    "id": "q01",
+    "role": "counselor",
+    "text": "Hi Maria, it's Alex. I have Daniel's award letter here; ask me or Beacon anything.",
+    "pause_before_ms": 300
+  },
+  {
+    "id": "q02",
+    "role": "parent",
+    "text": "Beacon, what's the difference between a subsidized and an unsubsidized loan?",
+    "pause_before_ms": 700,
+    "expect": {
+      "trigger": "SUMMON",
+      "outcome": "answered",
+      "note": "G7/G8: interest while in school."
+    }
+  },
+  {
+    "id": "q03",
+    "role": "parent",
+    "text": "Beacon, how much is the Pell Grant, and do we pay it back?",
+    "pause_before_ms": 700,
+    "expect": {
+      "trigger": "SUMMON",
+      "outcome": "answered",
+      "note": "L11/G6: $6,000, not repaid."
+    }
+  },
+  {
+    "id": "q04",
+    "role": "parent",
+    "text": "Beacon, what does SAP mean?",
+    "pause_before_ms": 700,
+    "expect": {
+      "trigger": "SUMMON",
+      "outcome": "answered",
+      "note": "G12/L22: 2.0 GPA and 67% of attempted credits."
+    }
+  },
+  {
+    "id": "q05",
+    "role": "parent",
+    "text": "Beacon, when are the verification documents due?",
+    "pause_before_ms": 700,
+    "expect": {
+      "trigger": "SUMMON",
+      "outcome": "answered",
+      "note": "L21: July 15."
+    }
+  },
+  {
+    "id": "q06",
+    "role": "parent",
+    "text": "Beacon, does work-study come off the bill?",
+    "pause_before_ms": 700,
+    "expect": {
+      "trigger": "SUMMON",
+      "outcome": "answered",
+      "note": "G10/L14: paid as paychecks, not credited upfront."
+    }
+  },
+  {
+    "id": "q07",
+    "role": "parent",
+    "text": "Beacon, what is the SAI on the FAFSA?",
+    "pause_before_ms": 700,
+    "expect": {
+      "trigger": "SUMMON",
+      "outcome": "answered",
+      "note": "G2/G1: an eligibility index, not what the family pays."
+    }
+  },
+  {
+    "id": "q08",
+    "role": "parent",
+    "text": "Beacon, what's the net price?",
+    "pause_before_ms": 700,
+    "expect": {
+      "trigger": "SUMMON",
+      "outcome": "answered",
+      "note": "G13/L19: $23,000, cost minus grants."
+    }
+  },
+  {
+    "id": "q09",
+    "role": "parent",
+    "text": "Beacon, what is the cost of attendance?",
+    "pause_before_ms": 700,
+    "expect": {
+      "trigger": "SUMMON",
+      "outcome": "answered",
+      "note": "G3/L3: $38,000 estimated full yearly cost."
+    }
+  },
+  {
+    "id": "q10",
+    "role": "parent",
+    "text": "Beacon, what's the interest rate on the Parent PLUS loan?",
+    "pause_before_ms": 700,
+    "expect": {
+      "trigger": "SUMMON",
+      "outcome": "declined",
+      "note": "No rate in the documents: say so and suggest asking Alex."
+    }
+  },
+  {
+    "id": "q11",
+    "role": "parent",
+    "text": "Beacon, when is the first tuition payment due?",
+    "pause_before_ms": 700,
+    "expect": {
+      "trigger": "SUMMON",
+      "outcome": "declined",
+      "note": "No payment date in the documents: say so and suggest asking Alex."
+    }
+  }
+]

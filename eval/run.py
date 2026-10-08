@@ -1,8 +1,10 @@
-"""Offline eval: runs the real analyzer and policy over the demo and control scripts, turn by turn
+"""Offline eval: runs the real analyzer and policy over the scripts in SCRIPTS, turn by turn
 (text only), scores each planted moment, and writes eval_results.md.
 
-Usage: python -m eval.run [--cache] [--script demo_call]
---cache stores LLM responses in .cache/ by prompt hash, so tuning the policy costs no quota."""
+Usage: python -m eval.run [--cache] [--script demo_call] [--runs 3]
+--cache stores LLM responses in .cache/ by prompt hash, so tuning the policy costs no quota.
+--runs repeats every script, because the same prompt can get a different answer from the LLM:
+a moment should reach its expected outcome in every run, not just once."""
 
 import argparse
 import asyncio
@@ -13,9 +15,18 @@ from datetime import datetime
 
 from backend.app import analyzer, config, policy, wakeword
 from backend.app.llm import GeminiLLM
-from backend.app.models import LogEntry, RoomState, Turn
+from backend.app.models import LogEntry, RoomState, SummonAnswer, Turn
 
-SCRIPTS = ["demo_call", "control_call"]
+SCRIPTS = [
+    "demo_call",  # the planted moments the demo video relies on
+    "demo_call_stt_noise",  # the same call as Chrome's speech recognition would transcribe it
+    "control_call",  # a clean call
+    "adversarial_clean",  # a clean call full of near misses (restatements, explained jargon)
+    "live_regressions",  # real failures from live testing
+    "summon_checks",  # questions to Beacon, inside and outside the documents
+]
+# Calls with nothing planted: the target is no spoken interjection and at most one private nudge.
+CLEAN_SCRIPTS = {"control_call", "adversarial_clean"}
 RESULTS_FILE = config.ROOT / "eval_results.md"
 MS_PER_WORD = 400  # ~150 words a minute; advances the virtual clock so cooldowns behave like a call
 START_MS = 1_000_000_000
@@ -30,7 +41,8 @@ class Call:
         self.latencies: list[int] = []  # analyzer network calls (not the cache, not the rate-limit wait)
         self.analyzed_ok = 0  # transcript length covered by the last successful analysis, as in rooms.py
         self.errors: list[str] = []
-        self.summons: dict[str, str] = {}  # turn id -> Beacon's answer
+        self.summons: dict[str, SummonAnswer] = {}  # turn id -> Beacon's answer (missing if it failed)
+        self.summon_latencies: list[int] = []
         self.decisions: list[str] = []
 
     def add(self, role: str, text: str, gap_ms: int, source: str) -> Turn:
@@ -72,12 +84,14 @@ async def run_script(llm: GeminiLLM, name: str) -> tuple[list[dict], Call]:
         line["turn_id"] = turn.id
         print(f"  {name} {line['id']} -> {turn.id} {line['role']}: {line['text'][:60]}", flush=True)
         if wakeword.find_summon(turn.text):
+            timed_before = len(llm.latencies_ms)
             try:
                 answer = await analyzer.answer_summon(llm, call.state, turn)
-                call.summons[turn.id] = answer.answer if answer.answered_from_documents else ""
+                call.summons[turn.id] = answer
                 call.speak(answer.answer)
             except Exception as exc:
                 call.errors.append(f"summon {turn.id}: {exc}")
+            call.summon_latencies += llm.latencies_ms[timed_before:]
         if not policy.should_analyze(call.state, call.analyzed_ok):
             call.analyzed_ok = len(call.state.turns)
             continue
@@ -103,7 +117,16 @@ def score(line: dict, call: Call) -> dict:
     if previous and previous.role == "counselor":
         window.add(previous.id)
     if expect["trigger"] == "SUMMON":
-        outcome, trigger = ("answered" if call.summons.get(line["turn_id"]) else "none"), "SUMMON"
+        # "declined": Beacon said the documents don't cover it. An answer over the spoken-word
+        # limit fails whatever it says.
+        answer = call.summons.get(line["turn_id"])
+        trigger = "SUMMON"
+        if answer is None:
+            outcome = "none"
+        elif len(answer.answer.split()) > config.SPOKEN_WORDS_WARNING:
+            outcome = "too long"
+        else:
+            outcome = "answered" if answer.answered_from_documents else "declined"
     else:
         flags = [f for f in call.state.flags if f.state != "dropped" and window & set(f.evidence_turn_ids)]
         flags.sort(key=lambda f: f.trigger != expect["trigger"])  # prefer the expected trigger
@@ -113,8 +136,8 @@ def score(line: dict, call: Call) -> dict:
     return {"line": line, "window": window, "trigger": trigger, "outcome": outcome, "passed": passed}
 
 
-def transcript_block(call: Call) -> list[str]:
-    lines = ["<details><summary>Transcript and decisions</summary>", "", "```"]
+def transcript_block(call: Call, title: str) -> list[str]:
+    lines = [f"<details><summary>{title}: transcript and decisions</summary>", "", "```"]
     for turn in call.state.turns:
         pause = f" ({turn.gap_ms / 1000:.1f}s pause)" if (turn.gap_ms or 0) >= config.NOTABLE_GAP_MS else ""
         lines.append(f"{turn.id} {turn.role.upper()}{pause}: {turn.text}")
@@ -122,57 +145,107 @@ def transcript_block(call: Call) -> list[str]:
     return lines
 
 
-def report(results: dict[str, tuple[list[dict], Call]], llm: GeminiLLM, cache: bool) -> str:
-    out = [
-        "# Eval results",
-        "",
-        f"{datetime.now():%Y-%m-%d %H:%M} · model `{config.GEMINI_MODEL}` · thinking `{config.GEMINI_THINKING_LEVEL}`"
-        f" · cache {'on' if cache else 'off'}",
-        "",
-    ]
-    errors = [error for _, call in results.values() for error in call.errors]
-    if errors:
-        warning = f"> **{len(errors)} LLM requests failed, so the outcomes below are not meaningful.**"
-        out += [f"{warning} See the list at the end.", ""]
-    all_latencies = []
-    for name, (script, call) in results.items():
-        all_latencies += call.latencies
-        out += [f"## {name}", ""]
-        planted = [line for line in script if "expect" in line]
-        scored = [score(line, call) for line in planted]
-        matched = set().union(*(s["window"] for s in scored)) if scored else set()
-        if scored:
-            out += ["| Line | Expected | Detected trigger | Outcome | Pass |", "|---|---|---|---|---|"]
-            for s in scored:
-                expect = s["line"]["expect"]
-                expected = f"{expect['trigger'] or 'no flag'} → {expect['outcome']}"
-                out.append(
-                    f"| {s['line']['id']} ({s['line']['turn_id']}) | {expected} | {s['trigger'] or '—'} "
-                    f"| {s['outcome']} | {'PASS' if s['passed'] else 'FAIL'} |"
-                )
-            out += ["", f"**{sum(s['passed'] for s in scored)}/{len(scored)} planted moments pass.**", ""]
-        flags = [f for f in call.state.flags if f.state != "dropped"]
-        unplanned = [f for f in flags if not matched & set(f.evidence_turn_ids)]
-        spoken = [f for f in flags if f.state == "spoken"]
-        if name == "control_call":
-            ok = len(flags) <= 1 and not spoken
-            out.append(f"**Flags: {len(flags)} (target ≤1) · spoken: {len(spoken)} (target 0) → {'PASS' if ok else 'FAIL'}**")
+def clean_call_check(call: Call) -> tuple[int, int, bool]:
+    """Flags (not counting dropped ones), spoken interjections, and whether a clean call passes."""
+    flags = [f for f in call.state.flags if f.state != "dropped"]
+    spoken = [f for f in flags if f.state == "spoken"]
+    return len(flags), len(spoken), len(flags) <= 1 and not spoken
+
+
+def summarize(name: str, runs: list[tuple[list[dict], Call]]) -> str:
+    """One line for the summary table: how consistently the script met its targets."""
+    parts = []
+    scored = [[score(line, call) for line in script if "expect" in line] for script, call in runs]
+    if scored[0]:
+        moments = len(scored[0])
+        always = sum(all(run[i]["passed"] for run in scored) for i in range(moments))
+        clean_runs = sum(all(s["passed"] for s in run) for run in scored)
+        parts.append(f"{always}/{moments} moments pass in every run; all moments pass in {clean_runs}/{len(runs)} runs")
+    if name in CLEAN_SCRIPTS:
+        checks = [clean_call_check(call) for _, call in runs]
+        flags = ", ".join(str(f) for f, _, _ in checks)
+        spoken = ", ".join(str(s) for _, s, _ in checks)
+        verdict = "PASS" if all(ok for _, _, ok in checks) else "FAIL"
+        parts.append(f"flags per run {flags} (target ≤1), spoken {spoken} (target 0) → {verdict}")
+    return f"| {name} | {'; '.join(parts)} |"
+
+
+def script_section(name: str, runs: list[tuple[list[dict], Call]]) -> list[str]:
+    out = [f"## {name}", ""]
+    script = runs[0][0]
+    planted = [line for line in script if "expect" in line]
+    scored = [[score(line, call) for line in s if "expect" in line] for s, call in runs]
+    if planted:
+        header = " | ".join(f"Run {i + 1}" for i in range(len(runs)))
+        out += [f"| Line | Expected | {header} | Passed |", "|---|---|" + "---|" * len(runs) + "---|"]
+        for i, line in enumerate(planted):
+            expect = line["expect"]
+            expected = f"{expect['trigger'] or 'no flag'} → {expect['outcome']}"
+            cells = []
+            for run in scored:
+                s = run[i]
+                cell = s["outcome"] if s["trigger"] in ("", "SUMMON") else f"{s['trigger']} → {s['outcome']}"
+                cells.append(cell if s["passed"] else f"**{cell} (FAIL)**")
+            passes = sum(run[i]["passed"] for run in scored)
+            out.append(f"| {line['id']} ({run[i]['line']['turn_id']}) | {expected} | {' | '.join(cells)} | {passes}/{len(runs)} |")
+        out.append("")
+    for index, ((_, call), run) in enumerate(zip(runs, scored), start=1):
+        title = f"Run {index}"
+        flags, spoken, ok = clean_call_check(call)
+        if name in CLEAN_SCRIPTS:
+            out.append(f"**{title}: flags {flags} (target ≤1) · spoken {spoken} (target 0) → {'PASS' if ok else 'FAIL'}**")
             out.append("")
+        matched = set().union(*(s["window"] for s in run)) if run else set()
+        unplanned = [f for f in call.state.flags if f.state != "dropped" and not matched & set(f.evidence_turn_ids)]
         if unplanned:
-            out += ["Flags not matched to a planted moment:", ""]
+            out += [f"{title}, flags not matched to a planted moment:", ""]
             out += [f"- {f.id} {f.trigger} `{f.issue_key}` → {f.state}, evidence {f.evidence_turn_ids}" for f in unplanned]
             out.append("")
         dropped = [f for f in call.state.flags if f.state == "dropped"]
         if dropped:
-            out += ["Dropped by the evidence gate:", ""]
+            out += [f"{title}, dropped by the evidence gate:", ""]
             out += [f"- {f.id} `{f.issue_key}`: {f.history[0].reason}" for f in dropped]
             out.append("")
-        out += transcript_block(call)
+        if call.summons:
+            out += [f"{title}, summon answers:", "", "| Turn | Words | From documents | Refs | Answer |", "|---|---|---|---|---|"]
+            for turn_id, answer in call.summons.items():
+                words = len(answer.answer.split())
+                out.append(f"| {turn_id} | {words} | {'yes' if answer.answered_from_documents else 'no'} | {', '.join(answer.doc_refs) or '—'} | {answer.answer} |")
+            out.append("")
+        out += transcript_block(call, title)
+    return out
+
+
+def _latency(label: str, values: list[int]) -> str:
+    if not values:
+        return f"- {label}: no network calls"
+    return f"- {label} over {len(values)} network calls: mean {statistics.mean(values):.0f} ms, max {max(values)} ms"
+
+
+def report(results: dict[str, list[tuple[list[dict], Call]]], llm: GeminiLLM, cache: bool) -> str:
+    runs = len(next(iter(results.values())))
+    out = [
+        "# Eval results",
+        "",
+        f"{datetime.now():%Y-%m-%d %H:%M} · model `{config.GEMINI_MODEL}` · thinking `{config.GEMINI_THINKING_LEVEL}`"
+        f" · cache {'on' if cache else 'off'} · {runs} run(s) per script",
+        "",
+    ]
+    calls = [call for script_runs in results.values() for _, call in script_runs]
+    errors = [error for call in calls for error in call.errors]
+    if errors:
+        warning = f"> **{len(errors)} LLM requests failed, so the outcomes below are not meaningful.**"
+        out += [f"{warning} See the list at the end.", ""]
+    out += ["| Script | Result |", "|---|---|"]
+    out += [summarize(name, script_runs) for name, script_runs in results.items()]
+    out.append("")
+    for name, script_runs in results.items():
+        out += script_section(name, script_runs)
     out += ["## LLM calls", ""]
     failed_early = llm.requests - llm.cache_hits - llm.api_calls  # e.g. no API key and not in the cache
     out.append(f"- Requests: {llm.requests} (network: {llm.api_calls}, from cache: {llm.cache_hits}, never sent: {failed_early})")
-    if all_latencies:
-        out.append(f"- Analyzer latency over {len(all_latencies)} network calls: mean {statistics.mean(all_latencies):.0f} ms, max {max(all_latencies)} ms")
+    out.append(_latency("Analyzer latency", [ms for call in calls for ms in call.latencies]))
+    out.append(_latency("Summon latency", [ms for call in calls for ms in call.summon_latencies]))
     out.append(f"- Errors: {len(errors)}")
     out += [f"  - {e}" for e in errors]
     return "\n".join(out) + "\n"
@@ -181,14 +254,18 @@ def report(results: dict[str, tuple[list[dict], Call]], llm: GeminiLLM, cache: b
 async def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cache", action="store_true", help="reuse and store LLM responses in .cache/")
-    parser.add_argument("--script", choices=SCRIPTS, help="run one script instead of both")
+    parser.add_argument("--script", choices=SCRIPTS, action="append", help="run only this script (repeatable)")
+    parser.add_argument("--runs", type=int, default=1, help="run each script this many times")
     args = parser.parse_args()
     if not config.GEMINI_API_KEY and not args.cache:
         sys.exit("GEMINI_API_KEY is not set. Add it to .env (see .env.example), or pass --cache to replay cached responses.")
     llm = GeminiLLM(cache=args.cache)
-    results = {}
-    for name in [args.script] if args.script else SCRIPTS:
-        results[name] = await run_script(llm, name)
+    results: dict[str, list[tuple[list[dict], Call]]] = {}
+    for name in args.script or SCRIPTS:
+        results[name] = []
+        for run in range(1, args.runs + 1):
+            print(f"{name}, run {run} of {args.runs}", flush=True)
+            results[name].append(await run_script(llm, name))
     RESULTS_FILE.write_text(report(results, llm, args.cache), encoding="utf-8")
     print(f"Wrote {RESULTS_FILE.name}")
 

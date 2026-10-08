@@ -106,9 +106,9 @@ its audio) acks instantly.
 | `backend/app/docs.py` | loads `data/award_letter.md` and `data/glossary.md`; line ids like `L14`, `G9` |
 | `backend/app/main.py` | FastAPI: `/api/documents`, `/api/scripts/{name}`, `/ws`, serves `web/dist` |
 | `backend/prompts/` | `analyzer.txt`, `summon.txt`, `recap.txt` |
-| `backend/tests/` | `test_policy.py` (most behavior, including the counselor's card buttons; `helpers.py` builds states and fake outputs), `test_smoke.py` (three WebSocket clients + FakeLLM), `test_rooms.py` (turn-taking and speech-queue regressions), `test_analyzer.py`, `test_wakeword.py` |
-| `eval/run.py` | offline eval over the scripts in its `SCRIPTS` list (`demo_call`, `control_call`; add a new script there), text only, virtual clock, no recap → `eval_results.md` |
-| `data/scripts/` | `demo_call.json` (planted moments, each with an `expect`), `control_call.json` (clean call) |
+| `backend/tests/` | `test_policy.py` (most behavior, including the counselor's card buttons; `helpers.py` builds states and fake outputs), `test_smoke.py` (three WebSocket clients + FakeLLM), `test_rooms.py` (turn-taking and speech-queue regressions), `test_analyzer.py` (prompt rendering; prompt examples must not reuse script lines), `test_wakeword.py`, `test_scripts.py` (every script well-formed and registered in the eval) |
+| `eval/run.py` | offline eval over the scripts in its `SCRIPTS` list (add a new script there and to `SCRIPTS` in `ObserverView.tsx`; `CLEAN_SCRIPTS` get the "≤1 flag, 0 spoken" target), text only, virtual clock, no recap, `--runs N` repeats each script → `eval_results.md` |
+| `data/scripts/` | `demo_call.json` (planted moments, each with an `expect`), `demo_call_stt_noise.json` (the same call as Chrome might transcribe it), `control_call.json` and `adversarial_clean.json` (clean calls), `live_regressions.json` (failures seen in live testing), `summon_checks.json` (questions to Beacon; `expect.outcome` "declined" = not in the documents) |
 | `web/src/` | React: `useRoom.ts` (WebSocket hook), `CallView.tsx`, `ObserverView.tsx`, `Recap.tsx`, `components.tsx`, `speech.ts` (push-to-talk + TTS), `simulate.ts` (script runner) |
 | `tasks.py` / `Makefile` | task runner; the Makefile only calls `tasks.py` |
 | `PLAN.md`, `DECISIONS.md`, `WRITEUP.md`, `DEMO.md` | plan + milestone checklist; decision and tuning log; challenge write-up (its "AI tools used" section is a placeholder for the author); demo video run-of-show |
@@ -119,7 +119,7 @@ its audio) acks instantly.
   pass eval flags as `make eval ARGS=--cache`). `tasks.py` always uses `./.venv`, so run `install`
   first (it also needs Node 20.19+ on the 20.x line, or 22.12+, for `npm install` in `web/`).
 - Without the task runner: `pip install -r requirements.txt`, then from the repo root
-  `python -m pytest -q` (pytest.ini sets `pythonpath`) and `python -m eval.run [--cache] [--script demo_call]`.
+  `python -m pytest -q` (pytest.ini sets `pythonpath`) and `python -m eval.run [--cache] [--script demo_call] [--runs 3]`.
 - `run` serves everything at http://localhost:8000: `/call?room=demo&role=counselor`,
   `/call?room=demo&role=parent`, `/observer?room=demo` (needs `build` first). `dev` runs uvicorn
   with reload on :8000 plus Vite on :5173.

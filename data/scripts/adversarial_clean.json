@@ -1,0 +1,134 @@
+[
+  {
+    "id": "a01",
+    "role": "counselor",
+    "text": "Hi Maria, it's Alex from financial aid at Westbrook State. Do you have Daniel's award letter handy?",
+    "pause_before_ms": 300
+  },
+  {
+    "id": "a02",
+    "role": "parent",
+    "text": "I do, it's right here.",
+    "pause_before_ms": 600
+  },
+  {
+    "id": "a03",
+    "role": "counselor",
+    "text": "Great. His total aid package is $31,500. Before you get excited, that's a mix: $15,000 in grants, which are free money, $14,000 in loans, which get paid back, and $2,500 in work-study he earns at a campus job.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "a04",
+    "role": "parent",
+    "text": "Okay, so the loans we pay back, and the grants we don't.",
+    "pause_before_ms": 700
+  },
+  {
+    "id": "a05",
+    "role": "counselor",
+    "text": "Exactly right.",
+    "pause_before_ms": 400
+  },
+  {
+    "id": "a06",
+    "role": "parent",
+    "text": "Wait, is the Parent PLUS loan part of that $31,500?",
+    "pause_before_ms": 900
+  },
+  {
+    "id": "a07",
+    "role": "counselor",
+    "text": "Yes, it is. The Parent PLUS is $8,500 of the $14,000 in loans. It's in your name, it's optional, and it needs its own application and a credit check.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "a08",
+    "role": "parent",
+    "text": "Got it, so that one would be mine to repay, and we can say no to it.",
+    "pause_before_ms": 700
+  },
+  {
+    "id": "a09",
+    "role": "counselor",
+    "text": "Right. Your SAI, the Student Aid Index, is a number calculated from your FAFSA. It's not what you'll pay, it's just used to figure out what he qualifies for.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "a10",
+    "role": "parent",
+    "text": "Mm-hm, okay.",
+    "pause_before_ms": 800
+  },
+  {
+    "id": "a11",
+    "role": "counselor",
+    "text": "Daniel was also selected for verification. That's not an approval, it just means the school needs more paperwork, like tax return transcripts, by July 15.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "a12",
+    "role": "parent",
+    "text": "So we still have to send the tax transcripts, and the deadline is July 15.",
+    "pause_before_ms": 2600
+  },
+  {
+    "id": "a13",
+    "role": "counselor",
+    "text": "That's it. To keep the Westbrook Grant he needs SAP, Satisfactory Academic Progress: at least a 2.0 GPA and finishing 67 percent of the credits he attempts, every term.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "a14",
+    "role": "parent",
+    "text": "Okay. He's a good student, so a C average shouldn't be a problem. What happens if he drops a class?",
+    "pause_before_ms": 700
+  },
+  {
+    "id": "a15",
+    "role": "counselor",
+    "text": "One dropped class is usually fine, as long as he still completes at least 67 percent of what he attempts that term.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "a16",
+    "role": "parent",
+    "text": "Okay, that makes sense.",
+    "pause_before_ms": 600
+  },
+  {
+    "id": "a17",
+    "role": "counselor",
+    "text": "You'll accept or decline each award in the student portal. You'll get an email when it's submitted.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "a18",
+    "role": "parent",
+    "text": "Mm-hm.",
+    "pause_before_ms": 400
+  },
+  {
+    "id": "a19",
+    "role": "counselor",
+    "text": "The net price is $23,000, that's the full $38,000 cost minus the $15,000 in grants.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "a20",
+    "role": "parent",
+    "text": "Okay, so the $23,000 is what's left before loans and work-study, and the loans we pay back.",
+    "pause_before_ms": 700
+  },
+  {
+    "id": "a21",
+    "role": "counselor",
+    "text": "Exactly. Any other questions for me today?",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "a22",
+    "role": "parent",
+    "text": "No, I think that's everything. Thank you, Alex.",
+    "pause_before_ms": 600
+  }
+]
