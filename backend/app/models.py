@@ -41,7 +41,8 @@ class Flag(BaseModel):
     evidence_quotes: list[str]
     counselor_card: str  # what seems misunderstood (shown privately to the counselor)
     suggested_clarification: str
-    spoken_line: str  # what Beacon says aloud if the ladder escalates
+    spoken_line: str  # what Beacon says aloud if the ladder escalates (addressed to the counselor)
+    family_question: str  # the same question for the family to ask the aid office later (recap)
     doc_refs: list[str]
     state: FlagState
     created_at_turn: str  # latest turn when the card appeared
@@ -98,6 +99,7 @@ class NewFlag(BaseModel):
     severity: Severity
     suggested_clarification: str
     spoken_line: str
+    family_question: str
     doc_refs: list[str]
 
 

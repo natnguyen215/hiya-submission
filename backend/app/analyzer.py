@@ -149,8 +149,12 @@ def _open_issues(state: RoomState) -> str:
     # are left out on purpose. The parent's unanswered questions are listed from parent_questions,
     # not from their flags, so dismissing an UNANSWERED_QUESTION card silences Beacon during the
     # call but cannot remove the family's open question from the recap.
-    lines = [f"{f.id} ({f.trigger}, saved for the recap): {f.counselor_card}" for f in state.flags if f.state == "recap"]
-    lines += [f"{f.id} ({f.trigger}, asked aloud by Beacon): {f.counselor_card}" for f in state.flags if f.state == "spoken"]
+
+    def issue(flag, how: str) -> str:
+        return f"{flag.id} ({flag.trigger}, {how}): {flag.counselor_card} Question for the family: {flag.family_question}"
+
+    lines = [issue(f, "saved for the recap") for f in state.flags if f.state == "recap"]
+    lines += [issue(f, "asked aloud by Beacon") for f in state.flags if f.state == "spoken"]
     lines += [
         f"{q.asked_turn_id} (unanswered question): “{q.text}”"
         for q in state.parent_questions
@@ -173,11 +177,12 @@ async def generate_recap(llm: LLM, state: RoomState) -> Recap:
 
 def add_missing_follow_ups(recap: Recap, state: RoomState) -> list[str]:
     """The recap must list every open issue (recap-state flags, unanswered questions). Add any the
-    LLM left out, using the flag's question for Beacon (spoken_line) or the parent's own words,
-    and return their ids for the log. As in _open_issues(), a dismissed flag is not an open issue,
-    but a question the parent asked and nobody answered still is, dismissed card or not."""
+    LLM left out, using the flag's family_question (spoken_line is addressed to the counselor:
+    "Quick check for Maria: ...") or the parent's own words, and return their ids for the log. As
+    in _open_issues(), a dismissed flag is not an open issue, but a question the parent asked and
+    nobody answered still is, dismissed card or not."""
     cited = {ref for follow_up in recap.follow_ups for ref in follow_up.refs}
-    missing = [(f.id, f.spoken_line) for f in state.flags if f.state == "recap" and f.id not in cited]
+    missing = [(f.id, f.family_question) for f in state.flags if f.state == "recap" and f.id not in cited]
     missing += [
         (q.asked_turn_id, q.text)
         for q in state.parent_questions

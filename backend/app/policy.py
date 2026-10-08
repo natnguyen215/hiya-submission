@@ -260,6 +260,7 @@ def _raise_unanswered(state: RoomState, seen: list[Turn], now_ms: int) -> list[A
             "counselor_card": config.UNANSWERED_CARD.format(**names),
             "suggested_clarification": config.UNANSWERED_CLARIFICATION.format(**names),
             "spoken_line": config.UNANSWERED_LINE.format(**names),
+            "family_question": question.text,  # the parent's own words, as UNANSWERED_LINE quotes them
             "doc_refs": [],
         }
         age = _turns_after(seen, question.asked_turn_id, ("counselor", "parent"))

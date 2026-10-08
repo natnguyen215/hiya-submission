@@ -126,6 +126,8 @@ export function FlagCard({ flag, detailed = false, onAction }: FlagCardProps) {
           ))}
           <dt>Beacon would say</dt>
           <dd>{flag.spoken_line}</dd>
+          <dt>Recap question</dt>
+          <dd>{flag.family_question}</dd>
           <dt>Documents</dt>
           <dd>{flag.doc_refs.length > 0 ? flag.doc_refs.join(", ") : "none cited"}</dd>
           {/* The ladder counts turns after the newest turn when the card appeared, or after the

@@ -31,7 +31,8 @@ export interface Flag {
   evidence_quotes: string[];
   counselor_card: string;
   suggested_clarification: string;
-  spoken_line: string;
+  spoken_line: string; // addressed to the counselor
+  family_question: string; // the same question for the family to ask the aid office later (recap)
   doc_refs: string[];
   state: FlagState;
   created_at_turn: string;

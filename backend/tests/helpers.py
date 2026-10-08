@@ -44,6 +44,7 @@ def new_flag(turn_ids, quotes, key="aid_package_includes_loans", severity="inter
         severity=severity,
         suggested_clarification="Explain which parts are loans.",
         spoken_line="Quick check for Maria: how much of that is loans?",
+        family_question="How much of the aid package is loans we have to repay?",
         doc_refs=["L17"],
     )
 

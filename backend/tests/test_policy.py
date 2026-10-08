@@ -537,3 +537,18 @@ def test_dismissed_unanswered_question_stays_in_the_recap_but_a_dismissed_misrea
     policy.end_of_call(state, now(state))
     assert analyzer._open_issues(state) == "(none)"
     assert analyzer.add_missing_follow_ups(empty_recap(), state) == []
+
+
+def test_recap_follow_ups_use_the_family_question_not_the_line_for_the_counselor():
+    state = covered_state()
+    policy.end_of_call(state, now(state))
+    recap = empty_recap()
+    assert analyzer.add_missing_follow_ups(recap, state) == ["f1"]
+    assert recap.follow_ups[0].question == "How much of the aid package is loans we have to repay?"
+    assert "Question for the family: How much of the aid package" in analyzer._open_issues(state)
+
+    state = question_state()
+    for text in ("Next, the portal.", "Then an email confirmation."):
+        add_turn(state, "counselor", text)
+    policy.after_analysis(state, output(), 4, now(state))
+    assert state.flags[0].family_question == "Does the work-study money have to be paid back?"
