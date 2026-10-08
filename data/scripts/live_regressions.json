@@ -54,7 +54,8 @@
     "expect": {
       "trigger": "SUMMON",
       "outcome": "answered",
-      "note": "The broad summon that timed out at 15 s live. It must be answered within SUMMON_TIMEOUT_SECONDS, in 25 words or fewer, with a one-sentence overview."
+      "note": "The broad summon that timed out at 15 s live. It must be answered within SUMMON_TIMEOUT_SECONDS, in 25 words or fewer, with a one-sentence overview.",
+      "refs": ["L1", "L2", "L3", "L9", "L16", "L17", "L18", "L19", "L20", "G4"]
     }
   },
   {
@@ -71,7 +72,8 @@
     "expect": {
       "trigger": "SUMMON",
       "outcome": "answered",
-      "note": "Another broad request; one live answer ran to 28 words, over the 25-word limit."
+      "note": "Another broad request; one live answer ran to 28 words, over the 25-word limit.",
+      "refs": ["L1", "L2", "L3", "L9", "L16", "L17", "L18", "L19", "L20", "G4"]
     }
   }
 ]

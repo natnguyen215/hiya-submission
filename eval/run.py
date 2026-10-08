@@ -16,7 +16,7 @@ from datetime import datetime
 
 from backend.app import analyzer, config, policy, wakeword
 from backend.app.llm import GeminiLLM
-from backend.app.models import LogEntry, RoomState, SummonAnswer, Turn
+from backend.app.models import Flag, LogEntry, RoomState, SummonAnswer, Turn
 
 SCRIPTS = [
     "demo_call",  # the planted moments the demo video relies on
@@ -32,6 +32,8 @@ RESULTS_FILE = config.ROOT / "eval_results.md"
 # The free tier's daily request quota (500 for gemini-3.5-flash-lite in October 2026) answers 429
 # with "retry in 15h...". Waiting won't help, so the eval stops and reports the runs it finished.
 DAILY_QUOTA = re.compile(r"retry in \d+h")
+# A declined summon must not slip in a figure: "$6,000", "$ 6000" or "6,000 dollars".
+DOLLAR_AMOUNT = re.compile(r"\$\s*\d|\d[\d,]*\s*dollars", re.IGNORECASE)
 MS_PER_WORD = 400  # ~150 words a minute; advances the virtual clock so cooldowns behave like a call
 START_MS = 1_000_000_000
 
@@ -116,13 +118,49 @@ async def run_script(llm: GeminiLLM, name: str) -> tuple[list[dict], Call]:
             continue
         call.analyzed_ok = result.turn_count
         call.record(policy.after_analysis(call.state, result.output, result.turn_count, call.clock))
-    call.record(policy.end_of_call(call.state, call.clock))
+    # No end_of_call(): moments are scored as the call left them, so a flag still waiting on the
+    # counselor reads "nudged" rather than the recap state end_of_call() would move it to.
     return script, call
+
+
+def expected_outcomes(expect: dict) -> list[str]:
+    """`outcome` is one outcome or a list of acceptable ones."""
+    outcome = expect["outcome"]
+    return outcome if isinstance(outcome, list) else [outcome]
+
+
+def is_quiet_only(expect: dict) -> bool:
+    """A moment that only checks Beacon stayed quiet. It passes on "none", so the summary reports
+    it apart from the moments that need a detection."""
+    return expected_outcomes(expect) == ["quiet"] and not expect.get("flag_required")
+
+
+def summon_outcome(answer: SummonAnswer | None, expect: dict) -> str:
+    """What Beacon did with a summon. An answer that fails a check says why, so it can't pass:
+    "answered" needs the documents, the word limit and one of the expected refs; "declined" must
+    not slip in a dollar amount."""
+    if answer is None:
+        return "none"
+    if not answer.answered_from_documents:
+        return "declined, but with a dollar amount" if DOLLAR_AMOUNT.search(answer.answer) else "declined"
+    words = len(answer.answer.split())
+    if words > config.SPOKEN_WORDS_WARNING:
+        return f"answered, too long ({words} words)"
+    if not set(answer.doc_refs) & set(expect.get("refs", [])):
+        return f"answered, without an expected ref (cited {', '.join(answer.doc_refs) or 'none'})"
+    return "answered"
+
+
+def spoken_line(flag: Flag, call: Call) -> str:
+    """The Beacon turn that mark_spoken() recorded for this flag, not just any Beacon turn."""
+    turn_id = next(event.turn_id for event in flag.history if event.state == "spoken")
+    return next(turn.text for turn in call.state.turns if turn.id == turn_id)
 
 
 def score(line: dict, call: Call) -> dict:
     """Match a planted moment to flags citing its parent turn or the counselor turn just before."""
     expect = line["expect"]
+    expected = expected_outcomes(expect)
     turns = call.state.turns
     index = next(i for i, t in enumerate(turns) if t.id == line["turn_id"])
     window = {line["turn_id"]}
@@ -130,22 +168,21 @@ def score(line: dict, call: Call) -> dict:
     if previous and previous.role == "counselor":
         window.add(previous.id)
     if expect["trigger"] == "SUMMON":
-        # "declined": Beacon said the documents don't cover it. An answer over the spoken-word
-        # limit fails whatever it says.
-        answer = call.summons.get(line["turn_id"])
-        trigger = "SUMMON"
-        if answer is None:
-            outcome = "none"
-        elif len(answer.answer.split()) > config.SPOKEN_WORDS_WARNING:
-            outcome = "too long"
-        else:
-            outcome = "answered" if answer.answered_from_documents else "declined"
+        trigger, outcome = "SUMMON", summon_outcome(call.summons.get(line["turn_id"]), expect)
     else:
         flags = [f for f in call.state.flags if f.state != "dropped" and window & set(f.evidence_turn_ids)]
         flags.sort(key=lambda f: f.trigger != expect["trigger"])  # prefer the expected trigger
         outcome, trigger = (flags[0].state, flags[0].trigger) if flags else ("none", "")
-    # "recap" means recap at most: anything except interrupting aloud passes.
-    passed = outcome != "spoken" if expect["outcome"] == "recap" else outcome == expect["outcome"]
+        mentions = expect.get("mentions")
+        if outcome == "spoken" and mentions and not any(m in spoken_line(flags[0], call).lower() for m in mentions):
+            outcome = "spoken, off topic"  # Beacon spoke, but its line mentions none of the keywords
+    if "quiet" in expected:
+        # "quiet": any state except spoken. With flag_required, a flag must also exist.
+        passed = not outcome.startswith("spoken") and not (expect.get("flag_required") and outcome == "none")
+    else:
+        passed = outcome in expected
+    if expect["trigger"] and outcome != "none" and trigger != expect["trigger"]:
+        passed = False  # the right outcome for the wrong reason
     return {"line": line, "window": window, "trigger": trigger, "outcome": outcome, "passed": passed}
 
 
@@ -170,10 +207,16 @@ def summarize(name: str, runs: list[tuple[list[dict], Call]]) -> str:
     parts = []
     scored = [[score(line, call) for line in script if "expect" in line] for script, call in runs]
     if scored[0]:
-        moments = len(scored[0])
-        always = sum(all(run[i]["passed"] for run in scored) for i in range(moments))
-        clean_runs = sum(all(s["passed"] for s in run) for run in scored)
-        parts.append(f"{always}/{moments} moments pass in every run; all moments pass in {clean_runs}/{len(runs)} runs")
+        # Quiet-only moments pass when nothing is detected, so they are not counted as detections.
+        quiet = [i for i, s in enumerate(scored[0]) if is_quiet_only(s["line"]["expect"])]
+        moments = [i for i in range(len(scored[0])) if i not in quiet]
+        if moments:
+            always = sum(all(run[i]["passed"] for run in scored) for i in moments)
+            clean_runs = sum(all(run[i]["passed"] for i in moments) for run in scored)
+            parts.append(f"{always}/{len(moments)} moments pass in every run; all moments pass in {clean_runs}/{len(runs)} runs")
+        if quiet:
+            stayed = sum(all(run[i]["passed"] for run in scored) for i in quiet)
+            parts.append(f"{stayed}/{len(quiet)} quiet moments (never spoken) stay quiet in every run")
     if name in CLEAN_SCRIPTS:
         checks = [clean_call_check(call) for _, call in runs]
         flags = ", ".join(str(f) for f, _, _ in checks)
@@ -193,7 +236,10 @@ def script_section(name: str, runs: list[tuple[list[dict], Call]]) -> list[str]:
         out += [f"| Line | Expected | {header} | Passed |", "|---|---|" + "---|" * len(runs) + "---|"]
         for i, line in enumerate(planted):
             expect = line["expect"]
-            expected = f"{expect['trigger'] or 'no flag'} → {expect['outcome']}"
+            outcomes = " or ".join(expected_outcomes(expect))
+            if expect.get("flag_required"):
+                outcomes += " (a flag must exist)"
+            expected = f"{expect['trigger'] or 'no flag'} → {outcomes}"
             cells = []
             for run in scored:
                 s = run[i]

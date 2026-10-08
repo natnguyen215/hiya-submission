@@ -66,7 +66,8 @@
     "expect": {
       "trigger": "MISREAD_TERM",
       "outcome": "spoken",
-      "note": "Maria thinks 'selected for verification' means already approved. Alex moves on to housing without correcting it, so Beacon asks aloud what it means for her."
+      "note": "Maria thinks 'selected for verification' means already approved. Alex moves on to housing without correcting it, so Beacon asks aloud what it means for her.",
+      "mentions": ["verification", "verified"]
     }
   },
   {
@@ -118,7 +119,8 @@
     "expect": {
       "trigger": "UNANSWERED_QUESTION",
       "outcome": "spoken",
-      "note": "Alex skips the question for three turns of portal logistics: the private card appears after the second, and Beacon reminds him aloud after the third. Alex then answers: it is earned as paychecks, never repaid, and not credited to the bill upfront."
+      "note": "Alex skips the question for three turns of portal logistics: the private card appears after the second, and Beacon reminds him aloud after the third. Alex then answers: it is earned as paychecks, never repaid, and not credited to the bill upfront.",
+      "mentions": ["work-study", "work study", "paid back"]
     }
   },
   {
@@ -163,8 +165,8 @@
     "text": "oh he'll be thrilled he's already talking about working at the campus library he practically lives there",
     "pause_before_ms": 600,
     "expect": {
-      "trigger": "UNEXPLAINED_JARGON",
-      "outcome": "recap",
+      "trigger": null,
+      "outcome": "quiet",
       "note": "recap at most; must never be spoken"
     }
   },
@@ -182,7 +184,8 @@
     "expect": {
       "trigger": "SUMMON",
       "outcome": "answered",
-      "note": "Maria uses the wake word. Beacon answers aloud from the glossary and letter: borrowed by the parent, optional, separate application and credit check, $8,500 offered."
+      "note": "Maria uses the wake word. Beacon answers aloud from the glossary and letter: borrowed by the parent, optional, separate application and credit check, $8,500 offered.",
+      "refs": ["G9", "L15"]
     }
   },
   {
