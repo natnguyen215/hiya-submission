@@ -99,6 +99,30 @@ def test_same_moment_under_a_new_key_is_ignored_even_after_it_was_resolved():
     assert "same MISREAD_TERM moment as f1" in log_text(actions)
 
 
+def test_a_relapse_after_a_resolved_flag_is_raised_again_under_the_same_key():
+    state = covered_state()
+    add_turn(state, "counselor", "To be clear, $14,000 of that is loans you repay.")
+    policy.after_analysis(state, output(resolved=["f1"]), 3, now(state))
+    add_turn(state, "parent", "Okay. Well, at least it's all covered.")
+    relapse = new_flag(["t3", "t4"], ["at least it's all covered"])  # same issue_key as f1
+    policy.after_analysis(state, output([relapse]), 4, now(state))
+    assert [(f.id, f.issue_key, f.state) for f in state.flags] == [
+        ("f1", "aid_package_includes_loans", "resolved"),
+        ("f2", "aid_package_includes_loans", "nudged"),
+    ]
+
+
+def test_an_unanswered_question_gets_one_flag_even_if_the_analyzer_resolves_it():
+    state = question_state()
+    add_turn(state, "counselor", "Next, accept your awards in the portal.")
+    add_turn(state, "counselor", "You'll get an email confirmation.")
+    policy.after_analysis(state, output(), 4, now(state))
+    policy.after_analysis(state, output(resolved=["f1"]), 4, now(state))
+    add_turn(state, "counselor", "And the deadline is in May.")
+    policy.after_analysis(state, output(), 5, now(state))
+    assert [(f.trigger, f.state) for f in state.flags] == [("UNANSWERED_QUESTION", "resolved")]
+
+
 def test_a_different_trigger_on_the_same_turn_is_still_raised():
     state = covered_state()
     jargon = new_flag(["t1", "t2"], ["So it's covered"], key="aid_package_jargon", trigger="UNEXPLAINED_JARGON")

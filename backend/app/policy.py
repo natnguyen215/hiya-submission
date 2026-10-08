@@ -127,10 +127,15 @@ def _create_flag(state: RoomState, fields: dict, flag_state: FlagState, reason: 
     return [SendCard(flag_id=flag.id), _log(now_ms, "flag", message, flag.id, turn_id)]
 
 
+# States in which a flag owns its issue_key. "resolved" frees it: a parent who later relapses into
+# the corrected belief is a new moment, and the model may reuse the key for it. "dropped" frees it
+# because its evidence failed. A dismissed flag keeps blocking it, so Beacon doesn't raise again
+# what the counselor already called a non-issue.
+KEY_BLOCKING_STATES = ("nudged", "spoken", "recap", "dismissed")
+
+
 def _active_flag_with_key(state: RoomState, issue_key: str) -> Flag | None:
-    # Only "dropped" frees a key. A dismissed flag keeps blocking it, so Beacon doesn't raise
-    # again what the counselor already called a non-issue.
-    return next((f for f in state.flags if f.issue_key == issue_key and f.state != "dropped"), None)
+    return next((f for f in state.flags if f.issue_key == issue_key and f.state in KEY_BLOCKING_STATES), None)
 
 
 def _flag_for_same_moment(state: RoomState, trigger: str, turn_ids: list[str], seen: list[Turn]) -> Flag | None:
@@ -233,7 +238,9 @@ def _raise_unanswered(state: RoomState, seen: list[Turn], now_ms: int) -> list[A
     latest = seen[-1].id
     for question in state.parent_questions:
         key = f"unanswered_{question.asked_turn_id}"
-        if question.answered_turn_id or _active_flag_with_key(state, key):
+        # One flag per question, whatever happened to it: the analyzer may list an unanswered-
+        # question flag as resolved without reporting the answer, and that must not re-raise it.
+        if question.answered_turn_id or any(f.issue_key == key for f in state.flags):
             continue
         waited = _turns_after(seen, question.asked_turn_id, ("counselor",))
         if waited < config.UNANSWERED_AFTER_COUNSELOR_TURNS:
