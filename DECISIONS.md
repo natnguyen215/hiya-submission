@@ -52,7 +52,8 @@ defaults are logged under "Tuned defaults".
   once; the next turn's analysis sees the whole transcript, and `should_analyze` counts from the
   last *successful* analysis, so a parent turn whose analysis failed is never skipped.
 - **Timeouts with `asyncio.wait_for` around the network call only**, so time spent waiting for a
-  rate-limit slot doesn't count against `ANALYZER_TIMEOUT_SECONDS`.
+  rate-limit slot doesn't count against the analyzer, summon, or recap timeout. Summons have
+  their own `SUMMON_TIMEOUT_SECONDS` (25 s), independent of the 15 s analyzer budget.
 - **`notes` is the first field of the analyzer output.** Models generate fields in order; a one-
   sentence summary before the flags acts as a small reasoning step. Evidence fields also come
   before judgment fields (`severity`, `spoken_line`) for the same reason.
@@ -179,6 +180,52 @@ defaults are logged under "Tuned defaults".
 | UNANSWERED_AFTER_COUNSELOR_TURNS | 2 | 1 | The unanswered-question flag goes through the same ladder as every other flag, so the total wait before Beacon speaks is UNANSWERED_AFTER + ESCALATE_AFTER counselor turns. With 2 + 1 the counselor gets three turns to ignore a direct question, and the planted moment (d) (two non-answers, then the counselor answers) would come out `resolved`, not `spoken`. With 1 + 1: a private nudge after the first non-answer, Beacon asks after the second. Rejected: special-casing this trigger to skip the nudge. |
 
 ## Tuning log
+
+### 2026-10-07: stated conclusions and broad summons
+
+- Live testing showed the analyzer recognizing a parent's conclusion that an aid package meant
+  everything was covered, but suppressing it as a minor/unconfirmed inference. `MISREAD_TERM`
+  now explicitly includes wrong stated conclusions about money, repayment, amounts owed,
+  deadlines, requirements, and approval status, even without misuse of a term. The trigger's
+  $24,000 example and the analyzer's Cedar Vale College $27,000 example generalize a documented
+  failure pattern rather than copying a script line: aid offers mix grants and loans, obscuring
+  what families pay and repay. Sources: [GAO-23-104708](https://www.gao.gov/products/gao-23-104708)
+  and [uAspire/New America, *Decoding the Cost of College* (2018)](https://www.newamerica.org/documents/2301/Decoding_the_Cost_of_College_Final_6218.pdf).
+- Replaced the perception prompt's false-interruption framing and blanket uncertainty suppression
+  with the actual private-card-first flow. A clear wrong belief that could change what the family
+  pays, borrows, signs, or does by a deadline gets `interrupt` severity. Correct restatements,
+  clarifying questions, and passive replies to simple logistics stay quiet. Evidence checks,
+  visibility boundaries, the escalation ladder, and cooldown are unchanged. Rejected: matching
+  demo phrases in Python or letting the LLM decide when to speak.
+- A broad summon timed out at 15 s. Added environment-overridable `SUMMON_TIMEOUT_SECONDS=25`
+  and used it only for summon answers. The summon prompt now requests a one-sentence document
+  overview and a specific suggested question for broad requests, within the existing 25-word
+  limit. Rejected: extending every analyzer call's budget or reading all documents aloud.
+- Validation: `python tasks.py test` passed all 58 backend tests, including independent summon
+  and analyzer timeout overrides. `python tasks.py eval` (no `--cache`), model
+  `gemini-3.5-flash-lite`, thinking `low`: **8/8 demo moments passed**; **control 0 flags,
+  0 spoken interjections** (targets: at most 1 flag, no spoken interjections). All 36 requests
+  reached the network, with 0 cache hits and 0 API errors. Analyzer latency: mean 1,457 ms,
+  max 3,732 ms. Per-moment outcomes:
+
+  | Moment | Outcome | Result |
+  |---|---|---|
+  | d04: aid package means everything is covered | MISREAD_TERM, counselor clarified, resolved | PASS |
+  | d10: selected for verification means approved | MISREAD_TERM, spoken | PASS |
+  | d15: unexplained SAP after a long pause | UNEXPLAINED_JARGON, counselor clarified, resolved | PASS |
+  | d17: work-study repayment question ignored | UNANSWERED_QUESTION, spoken | PASS |
+  | d23: SAI mention with substantive parent reply | No flag (recap at most) | PASS |
+  | d25: Parent PLUS summon | Answered from documents | PASS |
+  | d29: correct remaining-cost restatement | No flag | PASS |
+  | d31: correct net-price restatement | No flag | PASS |
+
+- Two additional uncached Gemini requests verified the exact live exchange and broad summon.
+  The live exchange produced an evidence-gated `MISREAD_TERM` private nudge with `interrupt`
+  severity. The broad summon returned a 19-word overview and suggested asking about the total
+  aid package in 963 ms, within its 25 s budget. Both requests succeeded with no cache hits or
+  API errors. Full script results and supplemental checks: `eval_results.md`.
+
+### Earlier build and rename checks
 
 No Gemini key was available during the original build. Before the real Gemini run recorded below,
 two substitutes were used, and neither is a Gemini result:

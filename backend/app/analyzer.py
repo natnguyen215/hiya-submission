@@ -139,7 +139,7 @@ async def answer_summon(llm: LLM, state: RoomState, turn: Turn) -> SummonAnswer:
             "DOCUMENTS": docs.DOCUMENTS_TEXT,
         },
     )
-    answer = await _generate(llm, prompt, SummonAnswer, config.ANALYZER_TIMEOUT_SECONDS)
+    answer = await _generate(llm, prompt, SummonAnswer, config.SUMMON_TIMEOUT_SECONDS)
     answer.doc_refs = [ref for ref in answer.doc_refs if ref in docs.LINES]
     return answer
 

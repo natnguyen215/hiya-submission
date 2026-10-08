@@ -24,10 +24,14 @@ TRIGGERS = [
         name="MISREAD_TERM",
         detected_by="llm",
         description=(
-            "The parent's own words show a wrong understanding of something the counselor said "
-            "(a term, an amount, a status, or a requirement)."
+            "The parent's own words state a wrong CONCLUSION about money, repayment, what they "
+            "owe, deadlines, requirements, or approval status that contradicts what the counselor "
+            "said or the documents. This includes wrong conclusions even when the parent never "
+            "misuses a specific term."
         ),
         positive_examples=[
+            "Counselor: Your financial aid offer comes to $24,000 this year. / Parent: Perfect, "
+            "so college won't cost us anything.",
             "Counselor: Your subsidized loan won't build interest while he's enrolled at least "
             "half-time. / Parent: Oh nice, so there's no interest on it ever.",
             "Counselor: The scholarship is renewable if he keeps a 3.0. / Parent: Great, so it's "

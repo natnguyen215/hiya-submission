@@ -1,6 +1,6 @@
 # Eval results
 
-2026-10-07 23:55 · model `gemini-3.5-flash-lite` · thinking `low` · cache off
+2026-10-07 23:59 · model `gemini-3.5-flash-lite` · thinking `low` · cache off
 
 ## demo_call
 
@@ -32,7 +32,7 @@ t9 PARENT: Okay. So $15,000 is free, and the rest is loans and his campus job.
 t10 COUNSELOR: That's right. Oh, and Daniel was also selected for verification.
 t11 PARENT: Oh good, so we're verified?
 t12 COUNSELOR: So, on to housing. Housing and meals are estimated at $16,500 for the year, out of a total yearly cost of $38,000.
-t13 BEACON: Quick check for Maria: what does being selected for verification mean we need to do?
+t13 BEACON: Quick check for the family: does selection for verification mean the documents are all set, or do they still need to submit anything?
 t14 COUNSELOR: Oh, good catch, thank you. Maria, sorry, I went right past that. Verification means the school needs more documents from you, like tax return transcripts and a verification worksheet. They're due July 15, or Daniel's aid could be delayed or canceled.
 t15 PARENT: Oh, I had that backwards. So we still owe paperwork, and it's due July 15.
 t16 COUNSELOR: Exactly. Now, to keep the Westbrook Grant, Daniel needs to maintain SAP each term.
@@ -48,7 +48,7 @@ t25 COUNSELOR: Right. And he qualified for work-study partly because of your SAI
 t26 PARENT: Oh, he'll be thrilled. He's already talking about working at the campus library. He practically lives there.
 t27 COUNSELOR: Ha, I love that. Tell him to apply early, those jobs go fast.
 t28 PARENT: Beacon, what's a Parent PLUS loan?
-t29 BEACON: A Parent PLUS loan is a federal loan that parents borrow to help pay college costs. It requires a credit check and is repaid by the parent.
+t29 BEACON: A Parent PLUS loan is an optional federal loan for parents. It requires a credit check and separate application.
 t30 COUNSELOR: Yep, that's exactly right. And I'd underline the optional part. You don't have to decide on it today.
 t31 PARENT: Okay, good. That's a big one, so I'd like to think it over.
 t32 COUNSELOR: Totally fair. So here's the whole picture. The full cost is $38,000. Accepting every piece of aid, including the Parent PLUS loan, covers $31,500, which leaves $6,500 for your family to pay.
@@ -60,23 +60,19 @@ t37 PARENT: Got it. Awards in the portal, documents by July 15. Thank you so muc
 t38 COUNSELOR: You're so welcome, Maria. And congratulations to Daniel!
 t39 PARENT: Thank you! Bye now.
 
-f1 MISREAD_TERM [total_aid_covers_everything] → nudged: private card for the counselor
+f1 MISREAD_TERM [total_aid_package_means_covered] → nudged: private card for the counselor
 f1 → resolved: the counselor clarified it
 parent asked: “So how much is actually free?”
 t8 answered the question from t7
 f2 MISREAD_TERM [verification_means_approved] → nudged: private card for the counselor
-question in t11 is already covered by f2
-ignored [verification_means_approved]: duplicate of f2
 f2 escalates: not clarified after 1 counselor turn(s); speaking at the next pause
 f2 → spoken: Beacon asked aloud
 f3 UNEXPLAINED_JARGON [sap_not_explained] → nudged: private card for the counselor
 f3 → resolved: the counselor clarified it
 parent asked: “does the work-study money have to be paid back?”
-f4 UNEXPLAINED_JARGON [sap_not_explained_2] → nudged: private card for the counselor
-f5 UNANSWERED_QUESTION [unanswered_t19] → nudged: unanswered after 1 counselor turn(s)
-f4 → resolved: the counselor clarified it
-f5 escalates: not clarified after 1 counselor turn(s); speaking at the next pause
-f5 → spoken: Beacon asked aloud
+f4 UNANSWERED_QUESTION [unanswered_t19] → nudged: unanswered after 1 counselor turn(s)
+f4 escalates: not clarified after 1 counselor turn(s); speaking at the next pause
+f4 → spoken: Beacon asked aloud
 t23 answered the question from t19
 ```
 
@@ -84,11 +80,7 @@ t23 answered the question from t19
 
 ## control_call
 
-**Flags: 1 (target ≤1) · spoken: 0 (target 0) → PASS**
-
-Flags not matched to a planted moment:
-
-- f1 UNANSWERED_QUESTION `unanswered_t13` → resolved, evidence ['t13']
+**Flags: 0 (target ≤1) · spoken: 0 (target 0) → PASS**
 
 <details><summary>Transcript and decisions</summary>
 
@@ -119,8 +111,6 @@ t22 COUNSELOR: My pleasure, Maria. Congratulations to Daniel, and take care.
 parent asked: “So how much of the $31,500 is actually free?”
 t6 answered the question from t5
 parent asked: “What happens if we miss July 15?”
-f1 UNANSWERED_QUESTION [unanswered_t13] → nudged: unanswered after 1 counselor turn(s)
-f1 → resolved: the counselor clarified it
 t14 answered the question from t13
 ```
 
@@ -129,5 +119,11 @@ t14 answered the question from t13
 ## LLM calls
 
 - Requests: 36 (network: 36, from cache: 0, never sent: 0)
-- Analyzer latency over 35 network calls: mean 1357 ms, max 3050 ms
+- Analyzer latency over 35 network calls: mean 1457 ms, max 3732 ms
 - Errors: 0
+
+## Supplemental uncached live regressions
+
+- Exact live aid-package exchange: MISREAD_TERM, interrupt severity, private nudge accepted by the evidence gate.
+- Broad summon: "I have details about Daniel's award letter and costs. Would you like to know about the total aid package?" (19 words; 963 ms network latency; 25 s budget).
+- Supplemental requests: 2 network calls, 0 cache hits, 0 errors.

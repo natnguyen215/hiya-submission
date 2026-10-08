@@ -35,6 +35,8 @@ GEMINI_MODEL = _setting("GEMINI_MODEL", "gemini-3.5-flash-lite")
 GEMINI_THINKING_LEVEL = _setting("GEMINI_THINKING_LEVEL", "low")
 MIN_SECONDS_BETWEEN_LLM_CALLS = _setting("MIN_SECONDS_BETWEEN_LLM_CALLS", 4.0)
 ANALYZER_TIMEOUT_SECONDS = _setting("ANALYZER_TIMEOUT_SECONDS", 15.0)
+# Direct questions can need more time than turn-by-turn perception.
+SUMMON_TIMEOUT_SECONDS = _setting("SUMMON_TIMEOUT_SECONDS", 25.0)
 RECAP_TIMEOUT_SECONDS = _setting("RECAP_TIMEOUT_SECONDS", 60.0)
 # After a 429 every call waits this long; free-tier quotas reset per minute.
 LLM_BACKOFF_SECONDS = _setting("LLM_BACKOFF_SECONDS", 20.0)

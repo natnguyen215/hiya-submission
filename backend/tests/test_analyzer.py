@@ -5,9 +5,9 @@ import asyncio
 
 from helpers import make_state, output
 
-from backend.app import analyzer
+from backend.app import analyzer, config
 from backend.app.llm import FakeLLM, LLMError
-from backend.app.models import ParentQuestion, Recap, RecapFollowUp, RecapItem
+from backend.app.models import ParentQuestion, Recap, RecapFollowUp, RecapItem, SummonAnswer
 
 
 def test_prompt_includes_triggers_examples_and_pauses():
@@ -41,6 +41,24 @@ def test_llm_failure_never_raises():
 
     result = asyncio.run(analyzer.analyze(FakeLLM(fail), make_state(("parent", "Hi."))))
     assert "429" in result.error and result.turn_count == 1
+
+
+def test_summon_timeout_is_independent_of_analyzer_timeout(monkeypatch):
+    monkeypatch.setattr(config, "ANALYZER_TIMEOUT_SECONDS", 11.0)
+    monkeypatch.setattr(config, "SUMMON_TIMEOUT_SECONDS", 37.0)
+    timeouts = []
+
+    class RecordingLLM(FakeLLM):
+        async def generate_json(self, prompt, schema, timeout_s):
+            timeouts.append(timeout_s)
+            return await super().generate_json(prompt, schema, timeout_s)
+
+    answer = SummonAnswer(answer="The documents cover aid and requirements.", doc_refs=[], answered_from_documents=True)
+    fake = RecordingLLM(lambda prompt, schema: answer if schema is SummonAnswer else output())
+    state = make_state(("parent", "Beacon, what is all the info that you have?"))
+    assert asyncio.run(analyzer.analyze(fake, state)).error is None
+    assert asyncio.run(analyzer.answer_summon(fake, state, state.turns[0])) == answer
+    assert timeouts == [11.0, 37.0]
 
 
 def item(label, amount, refs):
