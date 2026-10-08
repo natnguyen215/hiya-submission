@@ -1,0 +1,926 @@
+/* All styling for every view. One palette, so each speaker has the same color everywhere. */
+
+:root {
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --border: #d9dee7;
+  --text: #14181f;
+  --muted: #566074;
+
+  --counselor: #1d4ed8;
+  --counselor-soft: #e9f0ff;
+  --parent: #0f766e;
+  --parent-soft: #e0f4f1;
+  --beacon: #6d28d9;
+  --beacon-soft: #f2ebff;
+
+  --amber: #92400e;
+  --amber-line: #d97706;
+  --amber-soft: #fef3c7;
+  --green: #166534;
+  --green-line: #16a34a;
+  --green-soft: #dcfce7;
+  --grey: #4b5563;
+  --grey-line: #9ca3af;
+  --grey-soft: #eceff3;
+  --red: #b91c1c;
+  --red-soft: #fee2e2;
+
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(20, 24, 31, 0.06), 0 2px 8px rgba(20, 24, 31, 0.04);
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.45;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+}
+
+h2 {
+  font-size: 0.75em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  padding: 0.4em 1em;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--muted);
+}
+
+button.primary {
+  background: var(--counselor);
+  border-color: var(--counselor);
+  color: #fff;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+select {
+  padding: 0.35em 0.5em;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.empty {
+  color: var(--muted);
+  list-style: none;
+}
+
+.connecting {
+  padding: 40px;
+  font-size: 20px;
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------------- panels and bars */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+}
+
+.role-badge {
+  padding: 0.2em 0.8em;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.role-counselor {
+  background: var(--counselor-soft);
+  color: var(--counselor);
+}
+
+.role-parent {
+  background: var(--parent-soft);
+  color: var(--parent);
+}
+
+.role-observer {
+  background: var(--beacon-soft);
+  color: var(--beacon);
+}
+
+.status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.chip {
+  padding: 0.2em 0.75em;
+  border-radius: 999px;
+  background: var(--grey-soft);
+  color: var(--grey);
+  font-size: 0.8em;
+  font-weight: 600;
+}
+
+.call-live {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.analysis-running {
+  background: var(--beacon-soft);
+  color: var(--beacon);
+}
+
+.analysis-error,
+.chip-error {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.chip-speaking {
+  background: var(--beacon);
+  color: #fff;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  color: var(--muted);
+  font-size: 0.8em;
+  cursor: pointer;
+}
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  z-index: 10;
+  transform: translateX(-50%);
+  padding: 10px 18px;
+  border-radius: 8px;
+  background: var(--red);
+  color: #fff;
+  font-size: 16px;
+  box-shadow: var(--shadow);
+}
+
+/* ---------------------------------------------------------------- transcript */
+
+.transcript {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  margin: 0;
+  padding: 0 6px 0 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.turn {
+  padding: 6px 14px;
+  border-left: 4px solid var(--border);
+  border-radius: 0 8px 8px 0;
+}
+
+.turn-counselor {
+  border-left-color: var(--counselor);
+}
+
+.turn-parent {
+  border-left-color: var(--parent);
+}
+
+.turn-beacon {
+  border-left-color: var(--beacon);
+  background: var(--beacon-soft);
+}
+
+.turn.highlighted {
+  background: var(--amber-soft);
+  outline: 2px solid var(--amber-line);
+}
+
+.turn-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.72em;
+}
+
+.speaker {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.turn-counselor .speaker {
+  color: var(--counselor);
+}
+
+.turn-parent .speaker {
+  color: var(--parent);
+}
+
+.turn-beacon .speaker {
+  color: var(--beacon);
+}
+
+.turn-id {
+  font-family: var(--mono);
+  color: var(--muted);
+}
+
+.turn-text {
+  margin: 2px 0 0;
+}
+
+/* ---------------------------------------------------------------- badges and flag cards */
+
+.badge {
+  display: inline-block;
+  padding: 0.12em 0.55em;
+  border-radius: 6px;
+  background: var(--grey-soft);
+  color: var(--grey);
+  font-size: 0.75em;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.badge-pause,
+.state-nudged {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.state-resolved {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.state-spoken {
+  background: var(--beacon-soft);
+  color: var(--beacon);
+}
+
+.state-dropped {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.badge-trigger {
+  font-family: var(--mono);
+}
+
+.ref {
+  margin-left: 0.4em;
+  padding: 0 0.3em;
+  border-radius: 4px;
+  background: var(--grey-soft);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.85em;
+}
+
+.flag-card {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-left: 5px solid var(--grey-line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.flag-nudged {
+  border-left-color: var(--amber-line);
+}
+
+.flag-resolved {
+  border-left-color: var(--green-line);
+}
+
+.flag-spoken {
+  border-left-color: var(--beacon);
+}
+
+.flag-dropped {
+  border-left-color: var(--red);
+  opacity: 0.75;
+}
+
+.flag-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.flag-id {
+  font-family: var(--mono);
+  font-weight: 700;
+}
+
+.flag-card-text {
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+
+.flag-try {
+  margin: 0;
+  color: var(--muted);
+}
+
+.flag-details {
+  margin: 10px 0 0;
+  font-size: 0.9em;
+}
+
+.flag-details dt {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.75em;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.flag-details dd {
+  margin: 2px 0 0;
+}
+
+.quote {
+  font-style: italic;
+}
+
+.flag-history {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.flag-history li {
+  margin: 3px 0;
+}
+
+.recap-status {
+  padding: 12px 16px;
+  border: 1px dashed var(--grey-line);
+  border-radius: var(--radius);
+  background: var(--grey-soft);
+}
+
+.recap-status h2 {
+  margin-bottom: 4px;
+}
+
+.recap-status p {
+  margin: 0;
+}
+
+.recap-error {
+  border-color: var(--red);
+  background: var(--red-soft);
+}
+
+/* ---------------------------------------------------------------- family recap (every view) */
+
+.family-recap {
+  flex-shrink: 0;
+  overflow-y: auto;
+  padding: 0 18px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+/* The header stays in view while the recap scrolls, so its buttons are always reachable. */
+.recap-header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0 10px;
+  background: var(--surface);
+}
+
+.recap-header h2 {
+  margin: 0 auto 0 0;
+  color: var(--beacon);
+  font-size: 1em;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.recap-header h2,
+.recap-header button {
+  white-space: nowrap;
+}
+
+.recap-header button {
+  font-size: 0.8em;
+}
+
+.recap-unverified {
+  margin-bottom: 6px;
+  padding: 10px 14px;
+  border-left: 5px solid var(--red);
+  border-radius: 8px;
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.recap-unverified ul {
+  margin: 4px 0 0;
+  padding-left: 1.2em;
+}
+
+.recap-section {
+  margin-top: 14px;
+  padding-left: 14px;
+  border-left: 5px solid var(--grey-line);
+}
+
+.recap-section h3 {
+  margin-bottom: 2px;
+  font-size: 1em;
+}
+
+.recap-section ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recap-section .empty {
+  margin: 0;
+}
+
+.recap-grants {
+  border-left-color: var(--green-line);
+}
+
+.recap-loans {
+  border-left-color: var(--amber-line);
+}
+
+.recap-work {
+  border-left-color: var(--counselor);
+}
+
+.recap-still {
+  border-left-color: var(--red);
+}
+
+.recap-todo,
+.recap-follow-ups {
+  border-left-color: var(--beacon);
+}
+
+.recap-entry {
+  padding: 4px 0;
+}
+
+.recap-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+}
+
+.recap-label {
+  font-weight: 600;
+}
+
+.recap-amount {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.recap-cost .recap-amount {
+  font-size: 1.4em;
+}
+
+.recap-deadline {
+  padding: 0 0.4em;
+  border-radius: 6px;
+  background: var(--amber-soft);
+  color: var(--amber);
+  font-weight: 700;
+}
+
+.recap-note {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------------- call view (projector-sized) */
+
+.call-view {
+  --accent: var(--counselor);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-size: 22px;
+}
+
+.call-parent {
+  --accent: var(--parent);
+}
+
+.notice {
+  padding: 8px 24px;
+  background: var(--amber-soft);
+  color: var(--amber);
+  font-size: 0.75em;
+  font-weight: 600;
+}
+
+.call-body {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) 440px;
+  gap: 20px;
+  min-height: 0;
+  padding: 20px 24px;
+}
+
+.call-parent .call-body {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.call-main {
+  gap: 14px;
+}
+
+/* The recap shares the panel with the transcript, which keeps at least the remaining 40%. */
+.call-main .family-recap {
+  max-height: 60%;
+}
+
+/* What the recognizer has heard so far, shown like a turn that isn't in the transcript yet. */
+.heard {
+  margin: 0;
+  padding: 6px 14px;
+  border-left: 4px dashed var(--accent);
+  color: var(--muted);
+  font-style: italic;
+}
+
+.talk {
+  padding: 0.6em 1em;
+  border: 2px solid var(--accent);
+  color: var(--accent);
+  font-size: 1.05em;
+}
+
+.talk.listening {
+  background: var(--accent);
+  color: #fff;
+}
+
+.speaking-banner {
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--beacon);
+  color: #fff;
+  font-weight: 700;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.composer {
+  display: flex;
+  gap: 10px;
+}
+
+.composer input {
+  flex: 1;
+  padding: 0.45em 0.8em;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.composer input:focus {
+  outline: 2px solid var(--counselor);
+}
+
+.call-parent .composer input:focus {
+  outline-color: var(--parent);
+}
+
+.nudges {
+  overflow-y: auto;
+}
+
+.nudges .flag-card {
+  font-size: 0.85em;
+}
+
+.beacon-heading {
+  color: var(--beacon);
+  font-size: 1em;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.hint {
+  margin: -6px 0 14px;
+  color: var(--muted);
+  font-size: 0.72em;
+}
+
+/* ---------------------------------------------------------------- observer (desktop dashboard) */
+
+.observer-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-size: 16px;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 32px;
+  padding: 12px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-label {
+  color: var(--muted);
+  font-size: 0.75em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  font-weight: 600;
+}
+
+.expect {
+  color: var(--muted);
+  font-size: 0.9em;
+  font-weight: 400;
+}
+
+.observer-view .recap-status {
+  margin: 16px 24px 0;
+}
+
+/* Capped so the dashboard grid below keeps most of the screen. */
+.observer-view .family-recap {
+  max-height: 45vh;
+  margin: 16px 24px 0;
+  font-size: 18px;
+}
+
+.observer-grid {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 0.9fr);
+  grid-template-rows: minmax(0, 1fr) 260px;
+  grid-template-areas:
+    "transcript flags documents"
+    "log log log";
+  gap: 16px;
+  /* The recap above can't squeeze the dashboard to nothing; the page scrolls instead. */
+  min-height: 560px;
+  padding: 16px 24px 20px;
+}
+
+.area-transcript {
+  grid-area: transcript;
+}
+
+.area-transcript .transcript {
+  font-size: 19px;
+}
+
+.area-flags {
+  grid-area: flags;
+}
+
+.area-documents {
+  grid-area: documents;
+}
+
+.area-log {
+  grid-area: log;
+}
+
+.log {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  font-size: 0.9em;
+  list-style: none;
+}
+
+.log-entry {
+  display: grid;
+  grid-template-columns: 72px 88px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--grey-soft);
+}
+
+.log-entry time {
+  color: var(--muted);
+  font-family: var(--mono);
+}
+
+.log-kind {
+  text-align: center;
+}
+
+.log-call .log-kind {
+  background: var(--counselor-soft);
+  color: var(--counselor);
+}
+
+.log-flag .log-kind,
+.log-question .log-kind {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.log-ladder .log-kind,
+.log-speech .log-kind,
+.log-summon .log-kind {
+  background: var(--beacon-soft);
+  color: var(--beacon);
+}
+
+.log-recap .log-kind {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.log-error .log-kind {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.log-error .log-message {
+  color: var(--red);
+}
+
+.log-data {
+  grid-column: 3;
+}
+
+.log-data summary {
+  color: var(--muted);
+  font-size: 0.85em;
+  cursor: pointer;
+}
+
+.log-data pre {
+  max-height: 240px;
+  margin: 4px 0;
+  padding: 8px;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--grey-soft);
+  font-size: 0.85em;
+}
+
+.documents h3 {
+  margin: 8px 0 6px;
+  font-family: var(--mono);
+  font-size: 0.85em;
+}
+
+.documents ul {
+  margin: 0 0 12px;
+  padding: 0;
+  font-size: 0.88em;
+  list-style: none;
+}
+
+.documents li {
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
+.documents li.cited {
+  background: var(--amber-soft);
+  outline: 2px solid var(--amber-line);
+}
+
+.line-id {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-weight: 700;
+}
+
+/* ---------------------------------------------------------------- landing */
+
+.landing {
+  max-width: 640px;
+  margin: 80px auto;
+  padding: 0 24px;
+  font-size: 20px;
+}
+
+.landing h1 {
+  color: var(--beacon);
+  font-size: 2.4em;
+}
+
+.landing li {
+  margin: 10px 0;
+}
+
+.landing a {
+  color: var(--counselor);
+  font-weight: 600;
+}

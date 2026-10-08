@@ -1,0 +1,128 @@
+[
+  {
+    "id": "c01",
+    "role": "counselor",
+    "text": "Hi, Maria, it's Alex from financial aid at Westbrook State. Is now still a good time?",
+    "pause_before_ms": 300
+  },
+  {
+    "id": "c02",
+    "role": "parent",
+    "text": "Yes, hi, Alex. Perfect timing.",
+    "pause_before_ms": 600
+  },
+  {
+    "id": "c03",
+    "role": "counselor",
+    "text": "Great. Daniel's award letter is ready. The cost of attendance, the school's estimate for the full year, is $38,000. His aid package is $31,500, and that's grants, which are free money, plus loans, plus work-study, which is pay from a campus job.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "c04",
+    "role": "parent",
+    "text": "Okay. So how much of the $31,500 is actually free?",
+    "pause_before_ms": 700
+  },
+  {
+    "id": "c05",
+    "role": "counselor",
+    "text": "The grants, $15,000. That's the Westbrook Grant, $9,000, and the federal Pell Grant, $6,000. Grants are never paid back.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "c06",
+    "role": "parent",
+    "text": "Got it. And the rest is loans and work-study?",
+    "pause_before_ms": 600
+  },
+  {
+    "id": "c07",
+    "role": "counselor",
+    "text": "Right. Loans total $14,000. With Daniel's subsidized loan, $3,500, the government covers the interest while he's in school. His unsubsidized loan, $2,000, builds interest right away. And the Parent PLUS loan, $8,500, is one you'd borrow yourself. It's optional and needs its own application and a credit check.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "c08",
+    "role": "parent",
+    "text": "So the PLUS loan would be in my name, not Daniel's, and we don't have to take it.",
+    "pause_before_ms": 700
+  },
+  {
+    "id": "c09",
+    "role": "counselor",
+    "text": "Exactly. The last piece is work-study, $2,500. Daniel earns it as paychecks from a campus job, so it's never paid back, but it isn't taken off the bill upfront.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "c10",
+    "role": "parent",
+    "text": "So he earns it as he works, and we shouldn't count on it for the first bill.",
+    "pause_before_ms": 600
+  },
+  {
+    "id": "c11",
+    "role": "counselor",
+    "text": "That's it. Next, Daniel was selected for verification. That means the school needs more documents, like tax return transcripts and a verification worksheet. They're due by July 15.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "c12",
+    "role": "parent",
+    "text": "So it's paperwork we still owe, not an approval. What happens if we miss July 15?",
+    "pause_before_ms": 700
+  },
+  {
+    "id": "c13",
+    "role": "counselor",
+    "text": "Then his aid could be delayed or canceled, so I'd send everything early. Also, to keep the Westbrook Grant, Daniel must maintain SAP, which means Satisfactory Academic Progress. That's at least a 2.0 GPA, about a C average, and completing at least 67 percent of his attempted credits, each term.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "c14",
+    "role": "parent",
+    "text": "So at least a C average, and he finishes 67 percent of the credits he takes, every term, and the grant stays.",
+    "pause_before_ms": 700
+  },
+  {
+    "id": "c15",
+    "role": "counselor",
+    "text": "Exactly. Altogether, accepting every award, including the Parent PLUS loan, covers $31,500 of the $38,000, leaving $6,500 for your family. The net price, $23,000, is the full cost minus just the grants.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "c16",
+    "role": "parent",
+    "text": "So $23,000 is the real cost after the free money, and even taking everything, we'd still pay $6,500 ourselves.",
+    "pause_before_ms": 700
+  },
+  {
+    "id": "c17",
+    "role": "counselor",
+    "text": "That's right. For next steps, accept or decline each award in the student portal. You'll get an email confirmation once you submit.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "c18",
+    "role": "parent",
+    "text": "Mm-hm.",
+    "pause_before_ms": 400
+  },
+  {
+    "id": "c19",
+    "role": "counselor",
+    "text": "And send the verification documents by July 15. Call me anytime with questions.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "c20",
+    "role": "parent",
+    "text": "Will do. Awards in the portal, documents by July 15. Thanks, Alex, that was really clear.",
+    "pause_before_ms": 600
+  },
+  {
+    "id": "c21",
+    "role": "counselor",
+    "text": "My pleasure, Maria. Congratulations to Daniel, and take care.",
+    "pause_before_ms": 500
+  }
+]

@@ -1,0 +1,252 @@
+[
+  {
+    "id": "d01",
+    "role": "counselor",
+    "text": "Hi, Maria? It's Alex from financial aid at Westbrook State. Daniel's award letter is ready, so I wanted to walk you through it.",
+    "pause_before_ms": 300
+  },
+  {
+    "id": "d02",
+    "role": "parent",
+    "text": "Oh, wonderful, thank you. I have it pulled up right here.",
+    "pause_before_ms": 600
+  },
+  {
+    "id": "d03",
+    "role": "counselor",
+    "text": "Perfect. Okay, big number first. Daniel's total aid package is $31,500.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "d04",
+    "role": "parent",
+    "text": "Oh, thank goodness. So it's covered.",
+    "pause_before_ms": 700,
+    "expect": {
+      "trigger": "MISREAD_TERM",
+      "outcome": "resolved",
+      "note": "Maria reads 'aid package' as free money that covers everything. Alex's next turn corrects it after the private card: $14,000 is loans that must be repaid and $2,500 is work-study."
+    }
+  },
+  {
+    "id": "d05",
+    "role": "counselor",
+    "text": "Well, not quite, it isn't all free money. $14,000 of it is loans, which get paid back, and $2,500 is work-study, which Daniel earns at a campus job.",
+    "pause_before_ms": 800
+  },
+  {
+    "id": "d06",
+    "role": "parent",
+    "text": "Oh. I'm glad you said that. So how much is actually free?",
+    "pause_before_ms": 700
+  },
+  {
+    "id": "d07",
+    "role": "counselor",
+    "text": "The grants, $15,000. That's the Westbrook Grant, $9,000, and the federal Pell Grant, $6,000. Grants never get paid back.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "d08",
+    "role": "parent",
+    "text": "Okay. So $15,000 is free, and the rest is loans and his campus job.",
+    "pause_before_ms": 600
+  },
+  {
+    "id": "d09",
+    "role": "counselor",
+    "text": "That's right. Oh, and Daniel was also selected for verification.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "d10",
+    "role": "parent",
+    "text": "Oh good, so we're verified?",
+    "pause_before_ms": 700,
+    "expect": {
+      "trigger": "MISREAD_TERM",
+      "outcome": "spoken",
+      "note": "Maria thinks 'selected for verification' means already approved. Alex moves on to housing without correcting it, so Beacon asks aloud what it means for her."
+    }
+  },
+  {
+    "id": "d11",
+    "role": "counselor",
+    "text": "So, on to housing. Housing and meals are estimated at $16,500 for the year, out of a total yearly cost of $38,000.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "d12",
+    "role": "counselor",
+    "text": "Oh, good catch, thank you. Maria, sorry, I went right past that. Verification means the school needs more documents from you, like tax return transcripts and a verification worksheet. They're due July 15, or Daniel's aid could be delayed or canceled.",
+    "pause_before_ms": 1200
+  },
+  {
+    "id": "d13",
+    "role": "parent",
+    "text": "Oh, I had that backwards. So we still owe paperwork, and it's due July 15.",
+    "pause_before_ms": 700
+  },
+  {
+    "id": "d14",
+    "role": "counselor",
+    "text": "Exactly. Now, to keep the Westbrook Grant, Daniel needs to maintain SAP each term.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "d15",
+    "role": "parent",
+    "text": "...Okay.",
+    "pause_before_ms": 3000,
+    "expect": {
+      "trigger": "UNEXPLAINED_JARGON",
+      "outcome": "resolved",
+      "note": "Alex says 'SAP' without defining it; Maria hesitates for three seconds and replies passively. Alex explains SAP in his next turn after the private card."
+    }
+  },
+  {
+    "id": "d16",
+    "role": "counselor",
+    "text": "Sorry, let me explain. SAP is Satisfactory Academic Progress. Each term, Daniel needs at least a 2.0 GPA, about a C average, and has to complete at least 67 percent of the credits he attempts.",
+    "pause_before_ms": 700
+  },
+  {
+    "id": "d17",
+    "role": "parent",
+    "text": "Got it, a C average, and he finishes 67 percent of the credits he attempts. Um, does the work-study money have to be paid back?",
+    "pause_before_ms": 700,
+    "expect": {
+      "trigger": "UNANSWERED_QUESTION",
+      "outcome": "spoken",
+      "note": "Alex skips the question for two turns of portal logistics, so Beacon reminds him aloud. Alex then answers: it is earned as paychecks, never repaid, and not credited to the bill upfront."
+    }
+  },
+  {
+    "id": "d18",
+    "role": "counselor",
+    "text": "So, next step. You'll accept the awards in the student portal, and you can accept or decline each one separately.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "d19",
+    "role": "counselor",
+    "text": "Once you submit, you'll get an email confirmation.",
+    "pause_before_ms": 400
+  },
+  {
+    "id": "d20",
+    "role": "counselor",
+    "text": "Oh, you're right, I skipped your question, Maria. No, work-study isn't paid back. Daniel earns the $2,500 as paychecks from a campus job. It just isn't credited to the bill upfront.",
+    "pause_before_ms": 1200
+  },
+  {
+    "id": "d21",
+    "role": "parent",
+    "text": "Oh, okay. So it's his paycheck, not a loan, but it won't lower the bill upfront.",
+    "pause_before_ms": 600
+  },
+  {
+    "id": "d22",
+    "role": "counselor",
+    "text": "Right. And he qualified for work-study partly because of your SAI, which came from the FAFSA you filed.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "d23",
+    "role": "parent",
+    "text": "Oh, he'll be thrilled. He's already talking about working at the campus library. He practically lives there.",
+    "pause_before_ms": 600,
+    "expect": {
+      "trigger": "UNEXPLAINED_JARGON",
+      "outcome": "recap",
+      "note": "recap at most; must never be spoken"
+    }
+  },
+  {
+    "id": "d24",
+    "role": "counselor",
+    "text": "Ha, I love that. Tell him to apply early, those jobs go fast.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "d25",
+    "role": "parent",
+    "text": "Beacon, what's a Parent PLUS loan?",
+    "pause_before_ms": 800,
+    "expect": {
+      "trigger": "SUMMON",
+      "outcome": "answered",
+      "note": "Maria uses the wake word. Beacon answers aloud from the glossary and letter: borrowed by the parent, optional, separate application and credit check, $8,500 offered."
+    }
+  },
+  {
+    "id": "d26",
+    "role": "counselor",
+    "text": "Yep, that's exactly right. And I'd underline the optional part. You don't have to decide on it today.",
+    "pause_before_ms": 1200
+  },
+  {
+    "id": "d27",
+    "role": "parent",
+    "text": "Okay, good. That's a big one, so I'd like to think it over.",
+    "pause_before_ms": 600
+  },
+  {
+    "id": "d28",
+    "role": "counselor",
+    "text": "Totally fair. So here's the whole picture. The full cost is $38,000. Accepting every piece of aid, including the Parent PLUS loan, covers $31,500, which leaves $6,500 for your family to pay.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "d29",
+    "role": "parent",
+    "text": "So even taking every loan and the work-study, we'd still need $6,500 of our own.",
+    "pause_before_ms": 700,
+    "expect": {
+      "trigger": null,
+      "outcome": "none",
+      "note": "clear stretch"
+    }
+  },
+  {
+    "id": "d30",
+    "role": "counselor",
+    "text": "Right. The letter also lists a net price of $23,000. That's the full cost minus only the grants, the free money.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "d31",
+    "role": "parent",
+    "text": "Okay, $38,000 minus the $15,000 in grants. So $23,000 is what we'd cover with loans, work-study, and our own money.",
+    "pause_before_ms": 700,
+    "expect": {
+      "trigger": null,
+      "outcome": "none",
+      "note": "clear stretch"
+    }
+  },
+  {
+    "id": "d32",
+    "role": "counselor",
+    "text": "So, next steps. Accept or decline each award in the student portal, and send the verification documents by July 15.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "d33",
+    "role": "parent",
+    "text": "Got it. Awards in the portal, documents by July 15. Thank you so much, Alex, this really helped.",
+    "pause_before_ms": 600
+  },
+  {
+    "id": "d34",
+    "role": "counselor",
+    "text": "You're so welcome, Maria. And congratulations to Daniel!",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "d35",
+    "role": "parent",
+    "text": "Thank you! Bye now.",
+    "pause_before_ms": 500
+  }
+]
