@@ -223,13 +223,18 @@ def _apply_questions(state: RoomState, out: AnalyzerOutput, seen: list[Turn], no
         answer_turn = by_id.get(answered.answered_turn_id)
         if question is None or question.answered_turn_id or answer_turn is None:
             continue
-        if answer_turn.role != "counselor" or order[answer_turn.id] < order[question.asked_turn_id]:
+        if order[answer_turn.id] <= order[question.asked_turn_id] or answer_turn.role == "beacon":
             continue
+        # A later parent turn closes the question too: "oh never mind, I see it" or the parent
+        # answering it themselves. Beacon must not then ask it on their behalf.
+        withdrawn = answer_turn.role == "parent"
         question.answered_turn_id = answer_turn.id
-        actions.append(_log(now_ms, "question", f"{answer_turn.id} answered the question from {question.asked_turn_id}", turn_id=answer_turn.id))
+        verb = "withdrew the question from" if withdrawn else "answered the question from"
+        actions.append(_log(now_ms, "question", f"{answer_turn.id} {verb} {question.asked_turn_id}", turn_id=answer_turn.id))
         flag = _active_flag_with_key(state, f"unanswered_{question.asked_turn_id}")
         if flag and flag.state == "nudged":
-            actions += _transition(flag, "resolved", "the counselor answered the question", latest, now_ms)
+            reason = "the parent withdrew the question" if withdrawn else "the counselor answered the question"
+            actions += _transition(flag, "resolved", reason, latest, now_ms)
     return actions
 
 

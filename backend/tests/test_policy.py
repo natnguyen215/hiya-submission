@@ -298,6 +298,25 @@ def test_answered_question_resolves_its_flag():
     assert state.flags[0].state == "resolved"
 
 
+def test_a_parent_can_withdraw_their_own_question():
+    state = question_state()
+    add_turn(state, "parent", "Oh, never mind, it says so right on the letter.")
+    actions = policy.after_analysis(state, output(answered=[("t2", "t3")]), 3, now(state))
+    assert state.parent_questions[0].answered_turn_id == "t3"
+    assert "t3 withdrew the question from t2" in log_text(actions)
+    for text in ("Next, the portal.", "Then an email confirmation.", "And you can change your mind later."):
+        add_turn(state, "counselor", text)
+        assert not speak_actions(policy.after_analysis(state, output(), len(state.turns), now(state)))
+    assert state.flags == []
+
+
+def test_the_question_turn_itself_cannot_close_the_question():
+    state = question_state()
+    actions = policy.after_analysis(state, output(answered=[("t2", "t2")]), 2, now(state))
+    assert state.parent_questions[0].answered_turn_id is None
+    assert "withdrew" not in log_text(actions)
+
+
 def test_question_already_covered_by_a_flag_is_not_tracked_twice():
     state = make_state(("counselor", "He was selected for verification."), ("parent", "Oh good, so we're verified?"))
     flag = new_flag(["t2"], ["so we're verified"], key="verification_means_approved")
