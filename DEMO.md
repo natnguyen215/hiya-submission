@@ -1,5 +1,11 @@
 # Demo video run-of-show (2:45)
 
+**Quota before recording:** the free tier gives 500 Gemini requests a day (reset at midnight
+Pacific). A take of the simulated call costs about 35, the live beat a handful, so a rehearsal
+plus several takes fit easily, but don't run the full eval (about 100 requests per run) on
+recording day. Keep `NOTABLE_GAP_MS` at its default (2000) for the simulation: moment (c) relies
+on its 3-second pause being marked.
+
 **Setup before recording:** `make run` (or `python tasks.py run`) with a Gemini key in `.env`.
 Chrome window 1: observer (`/observer?room=demo`), left two-thirds of the screen. Chrome window 2:
 counselor (`/call?room=demo&role=counselor`), right third. Click once inside the counselor window

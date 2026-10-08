@@ -201,7 +201,10 @@ collected later as labeled examples for tuning the analyzer.
   roles yourself?" above).
 - The analyzer can miss things or misjudge severity; the design makes misses cheap (the recap
   catches them) and false interruptions rare (evidence gate, nudge first, cooldown).
-- The free-tier rate limit caps how fast analyses can run; calls are spaced 4 s apart.
+- The free tier allows 500 Gemini requests a day for this model (resetting at midnight Pacific),
+  and calls are spaced 4 s apart. A simulated demo call uses about 35 requests, one run of the
+  whole eval about 100. When the day's quota is gone, the observer's status reads "analyzer
+  unavailable: ... Quota exceeded ... retry in Nh" and Beacon stays quiet until the reset.
 
 ## Next steps
 
