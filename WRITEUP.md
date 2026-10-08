@@ -26,7 +26,9 @@ unexplained and the reply was a hesitant "...okay", it first shows the counselor
 with a suggested clarification. Usually the counselor fixes it and Beacon never speaks. If the
 counselor moves on, Beacon waits for a pause and asks on the family's behalf: "Quick check for
 Maria: what does 'selected for verification' mean for her?" About the family's money it asks
-rather than answers, so the expert stays in charge. The family can also ask it by name. After
+rather than answers, so the expert stays in charge. The counselor can dismiss a nudge or say
+they'll clarify; dismissals are logged as labeled data for tuning. The family can also ask it by
+name. After
 the call, everyone gets a plain-language Family Recap (free money vs. loans vs. work-study, what's
 left to pay, deadlines, open questions), every number cited, with a read-aloud button.
 

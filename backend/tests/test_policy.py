@@ -1,9 +1,11 @@
-"""Unit tests for policy.py: evidence gate, dedupe, ladder, staleness, cooldown, questions."""
+"""Unit tests for policy.py: evidence gate, dedupe, ladder, staleness, cooldown, questions, and
+the counselor's card buttons (including what a dismissal means for the prompt and the recap)."""
 
+import pytest
 from helpers import add_turn, make_state, new_flag, output
 
-from backend.app import config, policy
-from backend.app.models import LogEntry
+from backend.app import analyzer, config, policy
+from backend.app.models import LogEntry, Recap, RecapItem
 
 NOW = 1_000_000_000
 
@@ -299,3 +301,146 @@ def test_ladder_counts_from_when_the_card_appeared():
     assert not speak_actions(policy.after_analysis(state, output(), 3, NOW))
     add_turn(state, "counselor", "And meals are included.")
     assert speak_actions(policy.after_analysis(state, output(), 4, NOW))
+
+
+# ---------------------------------------------------------------- counselor controls
+
+
+def click(state, action, flag_id="f1"):
+    return policy.counselor_action(state, flag_id, action, state.turns[-1].id, NOW)
+
+
+def empty_recap():
+    total = RecapItem(label="Total cost", amount="", note="", refs=[])
+    return Recap(cost_of_attendance=total, grants=[], loans=[], work_study=[], still_to_pay=[], todos=[], follow_ups=[])
+
+
+def test_dismissed_flag_is_never_spoken():
+    state = covered_state()
+    actions = click(state, "dismiss")
+    flag = state.flags[0]
+    assert (flag.state, flag.counselor_action) == ("dismissed", "dismissed")
+    assert flag.history[-1].reason == "counselor: not an issue"
+    assert [type(a) for a in actions] == [policy.UpdateFlag, LogEntry]
+    for i in range(config.STALE_AFTER_TURNS + 2):
+        add_turn(state, "counselor", f"Moving on {i}.")
+        assert not speak_actions(policy.after_analysis(state, output(), len(state.turns), NOW))
+    policy.end_of_call(state, NOW)
+    assert flag.state == "dismissed"  # not moved to the recap either
+
+
+def test_dismissed_issue_key_still_blocks_a_new_flag():
+    state = covered_state()
+    click(state, "dismiss")
+    add_turn(state, "parent", "So it's covered, right?")
+    again = new_flag(["t3"], ["So it's covered"])
+    actions = policy.after_analysis(state, output([again]), 3, NOW)
+    assert len(state.flags) == 1
+    assert "duplicate of f1" in log_text(actions)
+
+
+def test_dismissed_flag_is_shown_to_the_analyzer_with_its_state():
+    state = covered_state()
+    click(state, "dismiss")
+    assert "f1 [aid_package_includes_loans] MISREAD_TERM state=dismissed" in analyzer.build_analysis_prompt(state)
+
+
+def test_will_clarify_gives_the_counselor_one_more_turn():
+    state = covered_state()
+    actions = click(state, "will_clarify")
+    flag = state.flags[0]
+    assert (flag.state, flag.counselor_action, flag.ladder_start_turn) == ("nudged", "will_clarify", "t2")
+    assert flag.history[-1].reason == "counselor: will clarify"
+    assert "counselor will clarify; waiting 2 counselor turn(s)" in log_text(actions)
+    add_turn(state, "counselor", "Moving on to housing, that's $16,500.")
+    assert not speak_actions(policy.after_analysis(state, output(), 3, NOW))  # without the click, due here
+    add_turn(state, "parent", "Okay.")
+    add_turn(state, "counselor", "And meals are $5,200.")
+    [speak] = speak_actions(policy.after_analysis(state, output(), 5, NOW))
+    assert speak.flag_id == "f1"
+
+
+def test_will_clarify_restarts_the_staleness_count():
+    state = covered_state()
+    add_turn(state, "parent", "Daniel will be so happy.")
+    add_turn(state, "parent", "He worked hard for this.")
+    click(state, "will_clarify")  # the count now starts at t4, not at the card (t2)
+    add_turn(state, "counselor", "He did. Next, housing.")
+    add_turn(state, "counselor", "Then meals.")
+    # Counted from the card this would be 4 turns, which is stale; from the click it is 2.
+    assert speak_actions(policy.after_analysis(state, output(), 6, NOW))
+
+    state = covered_state()
+    click(state, "will_clarify")
+    for role in ("counselor", "parent", "parent", "counselor"):
+        add_turn(state, role, "Something else.")
+    actions = policy.after_analysis(state, output(), 6, NOW)
+    assert state.flags[0].state == "recap"
+    assert "stale: 4 turns since t2" in state.flags[0].history[-1].reason
+    assert not speak_actions(actions)
+
+
+def test_will_clarify_then_the_counselor_clarifies():
+    state = covered_state()
+    click(state, "will_clarify")
+    add_turn(state, "counselor", "To be clear, $14,000 of that is loans you repay.")
+    actions = policy.after_analysis(state, output(resolved=["f1"]), 3, NOW)
+    assert state.flags[0].state == "resolved"
+    assert not speak_actions(actions)
+
+
+def test_will_clarify_works_once_but_dismiss_stays_available():
+    state = covered_state()
+    click(state, "will_clarify")
+    add_turn(state, "counselor", "Moving on to housing.")
+    actions = click(state, "will_clarify")
+    assert [type(a) for a in actions] == [LogEntry]
+    assert "ignored" in log_text(actions) and "already said" in log_text(actions)
+    assert state.flags[0].ladder_start_turn == "t2"  # the second click did not postpone it again
+    click(state, "dismiss")
+    assert state.flags[0].state == "dismissed"
+
+
+@pytest.mark.parametrize("flag_state", ["resolved", "spoken", "recap", "dropped", "dismissed"])
+@pytest.mark.parametrize("action", ["dismiss", "will_clarify"])
+def test_actions_on_flags_that_are_not_nudged_are_ignored_and_logged(flag_state, action):
+    state = covered_state()
+    flag = state.flags[0]
+    flag.state = flag_state
+    before = flag.model_copy(deep=True)
+    actions = click(state, action)
+    assert [type(a) for a in actions] == [LogEntry]
+    assert f"ignored counselor action {action} on f1: it is already {flag_state}" in log_text(actions)
+    assert flag == before
+
+
+def test_action_on_an_unknown_flag_is_ignored_and_logged():
+    state = covered_state()
+    actions = click(state, "dismiss", flag_id="f9")
+    assert [type(a) for a in actions] == [LogEntry]
+    assert "ignored counselor action dismiss on f9: no such flag" in log_text(actions)
+    assert state.flags[0].state == "nudged"
+
+
+def test_dismissed_unanswered_question_stays_in_the_recap_but_a_dismissed_misread_does_not():
+    state = question_state()
+    add_turn(state, "counselor", "Next, accept your awards in the portal.")
+    policy.after_analysis(state, output(), 3, NOW)
+    assert state.flags[0].trigger == "UNANSWERED_QUESTION"
+    click(state, "dismiss")
+    add_turn(state, "counselor", "You'll get an email confirmation.")
+    actions = policy.after_analysis(state, output(), 4, NOW)
+    assert not speak_actions(actions) and len(state.flags) == 1  # silenced, and not raised again
+    policy.end_of_call(state, NOW)
+    # The question itself was never answered, so the family still gets it as a follow-up.
+    assert "f1" not in analyzer._open_issues(state)
+    assert "t2 (unanswered question)" in analyzer._open_issues(state)
+    recap = empty_recap()
+    assert analyzer.add_missing_follow_ups(recap, state) == ["t2"]
+    assert recap.follow_ups[0].question == "Does the work-study money have to be paid back?"
+
+    state = covered_state()
+    click(state, "dismiss")
+    policy.end_of_call(state, NOW)
+    assert analyzer._open_issues(state) == "(none)"
+    assert analyzer.add_missing_follow_ups(empty_recap(), state) == []

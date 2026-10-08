@@ -11,6 +11,7 @@ Families in these calls often misunderstand and rarely say so: they nod along ("
 ## How to fill new_flags
 
 - Only raise issues visible in the latest few turns that are not already covered by an Existing flag.
+- Do not raise a new flag for an issue the counselor dismissed (state "dismissed" under Existing flags).
 - evidence_turn_ids: the turns that show the problem (always the parent's reply when the trigger says so), plus the counselor turn it responds to.
 - evidence_quotes: short phrases copied word for word from those turns. Code checks every quote against the cited turns and throws the flag away if a quote is not there.
 - issue_key: short snake_case name for the underlying misunderstanding (for example "subsidized_loan_interest_never_accrues"). Never reuse a key listed under Existing flags.

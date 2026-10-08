@@ -83,7 +83,11 @@ export function CallView({ room, role }: { room: string; role: Speaker }) {
             <p className="hint">Only you can see these. {settings.parent_name} can't.</p>
             {state.flags.length === 0 && <p className="empty">Nothing to clarify yet.</p>}
             {[...state.flags].reverse().map((flag) => (
-              <FlagCard key={flag.id} flag={flag} />
+              <FlagCard
+                key={flag.id}
+                flag={flag}
+                onAction={(action) => send({ type: "flag_action", flag_id: flag.id, action })}
+              />
             ))}
           </aside>
         )}

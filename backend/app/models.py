@@ -9,7 +9,8 @@ Speaker = Literal["counselor", "parent"]
 Role = Literal["counselor", "parent", "beacon"]
 ClientRole = Literal["counselor", "parent", "observer"]
 Severity = Literal["interrupt", "recap"]
-FlagState = Literal["nudged", "resolved", "spoken", "recap", "dropped"]
+FlagState = Literal["nudged", "resolved", "spoken", "recap", "dismissed", "dropped"]
+CardAction = Literal["dismiss", "will_clarify"]  # the two buttons on the counselor's nudge card
 
 
 # ---------------------------------------------------------------- conversation state
@@ -43,7 +44,12 @@ class Flag(BaseModel):
     spoken_line: str  # what Beacon says aloud if the ladder escalates
     doc_refs: list[str]
     state: FlagState
-    created_at_turn: str  # latest turn when the card appeared; the ladder counts turns after it
+    created_at_turn: str  # latest turn when the card appeared
+    # The ladder counts turns after this one. It starts as created_at_turn; the counselor's
+    # "I'll clarify" moves it to the newest turn and adds grace_turns.
+    ladder_start_turn: str
+    grace_turns: int = 0  # extra counselor turns before Beacon may speak
+    counselor_action: Literal["will_clarify", "dismissed"] | None = None  # the counselor's last click on the card
     history: list[FlagEvent]
 
 
@@ -194,6 +200,14 @@ class PlaybackDone(BaseModel):
     turn_id: str
 
 
+class FlagAction(BaseModel):
+    """The counselor clicked "I'll clarify" or "Not an issue" on a nudge card."""
+
+    type: Literal["flag_action"]
+    flag_id: str
+    action: CardAction
+
+
 class StartCall(BaseModel):
     type: Literal["start_call"]
     simulated: bool = False
@@ -208,7 +222,7 @@ class ResetRoom(BaseModel):
 
 
 ClientMessage = Annotated[
-    Join | TurnMessage | SimTurn | PttStart | PttStop | PlaybackDone | StartCall | EndCall | ResetRoom,
+    Join | TurnMessage | SimTurn | PttStart | PttStop | PlaybackDone | FlagAction | StartCall | EndCall | ResetRoom,
     Field(discriminator="type"),
 ]
 

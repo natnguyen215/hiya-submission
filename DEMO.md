@@ -21,6 +21,17 @@ highlights (2–4×) in editing.
 | 2:15–2:40 | The call ends. The Family Recap appears. Hover a reference chip (e.g. L20) to light up its document line. Press **Read aloud** for a few seconds, then show **Download .md**. | "After the call, the family gets a plain-language recap: free money, loans, work-study, what's left to pay, deadlines, and what's still unclear, every number cited. It can be read aloud." |
 | 2:40–2:45 | Back to the two windows. | "Beacon: the question the family won't ask, asked at the right moment." |
 
+**Live beat: counselor controls (about 15 s, recorded separately).** The simulation has no
+clicks, so record this one live and cut it in after moment (a), trimming the sped-up stretches to
+keep 2:45. Reset the room and click **Start call** in the counselor window, with the parent window
+(`/call?room=demo&role=parent`) open beside it. Counselor: "Daniel's total aid package is $31,500."
+Parent: "Oh, thank goodness, so it's covered." When the "so it's covered" card appears, click
+**I'll clarify** (the button becomes "Beacon will wait for you"), then clarify in your own words
+as the counselor, for example "To be clear, $14,000 of that is loans you'd repay." The card turns
+green, "Clarified". Narration: "The counselor stays in control: one click tells Beacon 'I've got
+this,' another says 'that's not an issue.' Every dismissal is logged, so false alarms become
+tuning data."
+
 **If something goes wrong on camera:** the observer says why. The status chip at the top shows
 "analyzer unavailable: ..." and the Decision Log has an error entry such as "analysis through t7
 failed after ... ms: LLMError: rate limited (429)", or a flag dropped by the evidence gate. Reset,

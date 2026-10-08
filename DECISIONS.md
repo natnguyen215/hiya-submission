@@ -84,6 +84,8 @@ defaults are logged under "Tuned defaults".
   flag is created, including turns the analyzer hadn't seen yet), and only counts turns an
   analysis has checked. A counselor turn spoken before the card existed never counts as "saw the
   card and didn't clarify". The analyzer judges resolution against the flag's evidence turns.
+  The count itself uses `ladder_start_turn`, which starts equal to `created_at_turn` and only
+  moves when the counselor clicks "I'll clarify" (see "Counselor controls").
 - **One interjection per analysis**, oldest due flag first; others wait (and may go stale).
 - **Staleness is also checked at creation:** a flag whose evidence (or an unanswered question)
   is already more than `STALE_AFTER_TURNS` turns old goes straight to the recap. Late detections
@@ -107,6 +109,54 @@ defaults are logged under "Tuned defaults".
 - **Unanswered-question lines are templates in `config.py`**, not LLM output: the trigger is
   code-decided, so its words are too. The question they quote goes through the same evidence
   gate as flags: the analyzer must copy it word for word, and code checks it against the turn.
+
+## Counselor controls
+
+- **Two buttons on each nudge card: "I'll clarify" and "Not an issue".** The office deploys
+  Beacon, but the counselor is the expert on the call and must be able to say "I've got this" or
+  "that isn't a misunderstanding" without Beacon talking over them. It is also the answer to
+  "what about false alarms?": one click ends one. And every dismissal is a labeled example: the
+  click is written to the call's log file as `counselor_feedback` with the whole flag (trigger,
+  evidence quotes, card text), so false alarms can be collected later to tune the analyzer.
+  Rejected: more controls (snooze lengths, a reason picker, editing the card); two buttons are
+  what a counselor can use mid-sentence.
+- **Same split as everywhere else:** `policy.counselor_action()` validates the click and changes
+  the flag (pure, unit-tested); `rooms.flag_action()` checks the role, sends the update, writes
+  the feedback record and touches the speech queue.
+- **`dismissed` is a new state, and it still blocks its `issue_key`.** A `dropped` flag frees its
+  key because its evidence failed, so a better-evidenced flag may come back. A dismissed flag was
+  judged by the expert, and raising it again would be nagging. Key-based dedupe can't catch the
+  same issue under a reworded key, so the analyzer also sees `state=dismissed` under "Existing
+  flags" and one prompt line tells it not to raise that issue again. Rejected: reusing `resolved`
+  (it would mix "the counselor fixed it" with "the counselor said it wasn't one" in the log and
+  in the tuning data).
+- **A dismissed flag is not an open issue in the recap, but an unanswered question survives
+  dismissal.** The recap lists unanswered questions from `parent_questions`, not from their
+  flags. The counselor decides whether Beacon interrupts their call; the recap belongs to the
+  family. "Maria asked this and nobody answered" is a fact counted by code, not a judgment the
+  counselor can overrule, while for a dismissed misread or jargon flag the counselor's judgment
+  is the best evidence there is. If the question is answered later, it drops out as usual.
+- **"I'll clarify" restarts the ladder and works once per flag.** It sets `ladder_start_turn` to
+  the newest turn and `grace_turns` to `CLARIFY_GRACE_COUNSELOR_TURNS` (1), so Beacon waits for
+  two counselor turns from the click instead of one; staleness is counted from the click too
+  (`STALE_AFTER_TURNS` itself is unchanged: two counselor turns and a parent reply still fit in
+  3). Once only, because a second click would let the counselor postpone the family's question
+  for as long as they keep clicking; if it really isn't an issue, "Not an issue" says so and is
+  logged as that. Rejected: a wall-clock snooze (the ladder has no timer and counts in turns).
+- **Either click withdraws a line already queued for that flag, before any `await`.** After
+  "I'll clarify" the flag is still `nudged`, so the speaker loop's own check (skip a line whose
+  flag isn't nudged) would not stop it. A line that is already playing can't be taken back:
+  `_speak()` marks the flag `spoken` before its first `await`, so the click finds a flag that is
+  no longer nudged and is ignored like any other late click.
+- **Invalid or late clicks are ignored and logged, never answered with an error:** a click from
+  the parent or the observer, an unknown flag id, a flag that isn't `nudged`, a second "I'll
+  clarify". The parent never receives cards, so a parent `flag_action` can only be hand-made.
+- **Card buttons give up focus after a click.** Space is the push-to-talk key, and a button
+  that keeps keyboard focus is pressed again by the next Space wherever the page doesn't cancel
+  that key (it cancels it only while the call is live and the browser has speech recognition).
+  Blurring in the click handler makes the next Space a talk key in every case.
+- **The eval has no counselor clicks**, so it can only show that the feature (and its one prompt
+  line) broke nothing; the behavior is covered by unit and WebSocket tests.
 
 ## Speaking and turn-taking
 

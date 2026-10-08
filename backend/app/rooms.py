@@ -22,6 +22,7 @@ from .models import (
     EndCall,
     ErrorMessage,
     Flag,
+    FlagAction,
     FlagCard,
     FlagUpdated,
     LogEntry,
@@ -207,6 +208,35 @@ async def handle(room: Room, ws: WebSocket, role: ClientRole, message: BaseModel
             await end_call(room)
         case ResetRoom():
             await reset_room(room)
+        case FlagAction():
+            await flag_action(room, role, message)
+
+
+async def flag_action(room: Room, role: ClientRole, message: FlagAction) -> None:
+    """The counselor clicked "I'll clarify" or "Not an issue" on a nudge card.
+    policy.counselor_action() validates and applies the click; this carries out the result."""
+    latest = room.state.turns[-1].id if room.state.turns else ""
+    if role != "counselor":
+        await log(room, "ladder", f"ignored {message.action} on {message.flag_id}: only the counselor can act on a card, not the {role}", turn_id=latest)
+        return
+    actions = policy.counselor_action(room.state, message.flag_id, message.action, latest, now_ms())
+    accepted = any(isinstance(action, policy.UpdateFlag) for action in actions)
+    # The counselor has taken this flag over, so a line already queued for it must not be said.
+    # Withdraw it before any await: after "I'll clarify" the flag is still nudged, and the speaker
+    # loop would otherwise say the line while the messages below are being sent.
+    withdrawn = accepted and any(s.flag_id == message.flag_id for s in room.speech_queue)
+    if withdrawn:
+        room.speech_queue = [s for s in room.speech_queue if s.flag_id != message.flag_id]
+    await execute(room, actions)
+    if not accepted:
+        return  # the policy's log entry says why it was ignored
+    flag = next(f for f in room.state.flags if f.id == message.flag_id)
+    # Kept with the whole flag so dismissals can be collected later as labeled examples:
+    # what Beacon flagged, and what the expert on the call said about it.
+    _write_log_file(room, {"type": "counselor_feedback", "action": message.action, "flag": flag.model_dump(), "turn_id": latest})
+    if withdrawn:
+        await log(room, "speech", f"withdrew queued line for {flag.id}: the counselor answered the card first", flag_id=flag.id, turn_id=latest)
+        await send_status(room)
 
 
 async def add_turn(room: Room, role: str, text: str, started_at: int, ended_at: int, gap_ms: int | None, source: str) -> None:

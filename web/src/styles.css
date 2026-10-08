@@ -376,6 +376,32 @@ select {
   opacity: 0.75;
 }
 
+.flag-dismissed {
+  background: var(--grey-soft);
+  color: var(--grey);
+}
+
+/* Small and plain on purpose: the card's text is what the counselor should read first. */
+.flag-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.flag-action {
+  padding: 0.2em 0.7em;
+  color: var(--muted);
+  font-size: 0.8em;
+}
+
+.flag-note {
+  color: var(--muted);
+  font-size: 0.8em;
+  font-style: italic;
+}
+
 .flag-header {
   display: flex;
   flex-wrap: wrap;

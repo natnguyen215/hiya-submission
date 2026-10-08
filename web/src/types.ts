@@ -3,7 +3,8 @@
 export type Speaker = "counselor" | "parent";
 export type Role = Speaker | "beacon";
 export type ClientRole = Speaker | "observer";
-export type FlagState = "nudged" | "resolved" | "spoken" | "recap" | "dropped";
+export type FlagState = "nudged" | "resolved" | "spoken" | "recap" | "dismissed" | "dropped";
+export type CardAction = "dismiss" | "will_clarify"; // the two buttons on the counselor's nudge card
 
 export interface Turn {
   id: string;
@@ -34,6 +35,9 @@ export interface Flag {
   doc_refs: string[];
   state: FlagState;
   created_at_turn: string;
+  ladder_start_turn: string; // the ladder counts turns after this one; "I'll clarify" moves it
+  grace_turns: number; // extra counselor turns before Beacon may speak
+  counselor_action: "will_clarify" | "dismissed" | null; // the counselor's last click on the card
   history: FlagEvent[];
 }
 
@@ -120,6 +124,7 @@ export type ClientMessage =
   | { type: "ptt_start" }
   | { type: "ptt_stop" }
   | { type: "beacon_playback_done"; turn_id: string }
+  | { type: "flag_action"; flag_id: string; action: CardAction }
   | { type: "start_call"; simulated: boolean }
   | { type: "end_call" }
   | { type: "reset_room" };

@@ -3,7 +3,9 @@
 import asyncio
 import json
 
-from backend.app import config, rooms
+from helpers import make_state, new_flag, output
+
+from backend.app import config, policy, rooms
 from backend.app.models import PttStart, PttStop, StatusMessage
 
 
@@ -48,6 +50,23 @@ def test_push_to_talk_is_rejected_during_assistant_playback():
         room.state.status.speaking_turn_id = "t1"
         await rooms.handle(room, Socket(), "parent", PttStart(type="ptt_start"))
         assert room.state.status.ptt_active is None
+
+    asyncio.run(run())
+
+
+def test_a_queued_line_for_a_dismissed_flag_is_not_spoken(monkeypatch):
+    """flag_action() withdraws the line itself; this is the speaker loop's own check behind it."""
+    monkeypatch.setattr(config, "PAUSE_BEFORE_SPEAK_MS", 0)
+
+    async def run():
+        room = rooms.Room(name="dismissed")
+        room.state = make_state(("counselor", "Daniel's total aid package is $31,500."), ("parent", "So it's covered."))
+        policy.after_analysis(room.state, output([new_flag(["t1", "t2"], ["So it's covered"])]), 2, 0)
+        room.speech_queue.append(rooms.Speech(text="Quick check for Maria.", kind="flag", flag_id="f1"))
+        policy.counselor_action(room.state, "f1", "dismiss", "t2", 0)
+        await rooms._speaker_loop(room)
+        assert [t.role for t in room.state.turns] == ["counselor", "parent"]
+        assert room.state.log[-1].message == "skipped line for f1: it is already dismissed"
 
     asyncio.run(run())
 

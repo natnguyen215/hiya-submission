@@ -1,5 +1,5 @@
-"""Pure decision logic: given the room state and what the analyzer perceived, decide whether, when
-and how Beacon acts. No I/O, no clock, no LLM. Callers pass `now_ms`; each function records its
+"""Pure decision logic: given the room state and what the analyzer perceived (or which button the
+counselor clicked on a card), decide whether, when and how Beacon acts. No I/O, no clock, no LLM. Callers pass `now_ms`; each function records its
 decisions in the state (flags, questions, cooldown) and returns the side effects as actions for
 rooms.py, or the eval, to carry out."""
 
@@ -9,7 +9,7 @@ from difflib import SequenceMatcher
 from pydantic import BaseModel
 
 from . import config, docs, wakeword
-from .models import AnalyzerOutput, Flag, FlagEvent, FlagState, LogEntry, ParentQuestion, RoomState, Turn
+from .models import AnalyzerOutput, CardAction, Flag, FlagEvent, FlagState, LogEntry, ParentQuestion, RoomState, Turn
 from .triggers import LLM_TRIGGER_NAMES, PARENT_EVIDENCED
 
 
@@ -116,6 +116,7 @@ def _create_flag(state: RoomState, fields: dict, flag_state: FlagState, reason: 
         # call. The ladder counts from here, so a counselor turn spoken before the card existed
         # never counts as "saw the card and didn't clarify".
         created_at_turn=state.turns[-1].id,
+        ladder_start_turn=state.turns[-1].id,
         history=[FlagEvent(state=flag_state, reason=reason, turn_id=turn_id)],
         **fields,
     )
@@ -125,6 +126,8 @@ def _create_flag(state: RoomState, fields: dict, flag_state: FlagState, reason: 
 
 
 def _active_flag_with_key(state: RoomState, issue_key: str) -> Flag | None:
+    # Only "dropped" frees a key. A dismissed flag keeps blocking it, so Beacon doesn't raise
+    # again what the counselor already called a non-issue.
     return next((f for f in state.flags if f.issue_key == issue_key and f.state != "dropped"), None)
 
 
@@ -240,17 +243,23 @@ def _raise_unanswered(state: RoomState, seen: list[Turn], now_ms: int) -> list[A
 # ---------------------------------------------------------------- escalation ladder
 
 
+def _turns_before_speaking(flag: Flag) -> int:
+    """Counselor turns without a fix before Beacon may ask aloud; "I'll clarify" adds the grace."""
+    return config.ESCALATE_AFTER_COUNSELOR_TURNS + flag.grace_turns
+
+
 def _run_ladder(state: RoomState, seen: list[Turn], unseen_human_turns: bool, now_ms: int) -> list[Action]:
     actions: list[Action] = []
     latest = seen[-1].id
     due: list[Flag] = []
     for flag in [f for f in state.flags if f.state == "nudged"]:
-        counselor_turns = _turns_after(seen, flag.created_at_turn, ("counselor",))
-        if counselor_turns < config.ESCALATE_AFTER_COUNSELOR_TURNS:
+        # Both counts start at ladder_start_turn: when the card appeared, or the counselor's "I'll clarify".
+        counselor_turns = _turns_after(seen, flag.ladder_start_turn, ("counselor",))
+        if counselor_turns < _turns_before_speaking(flag):
             continue
-        human_turns = _turns_after(seen, flag.created_at_turn, ("counselor", "parent"))
+        human_turns = _turns_after(seen, flag.ladder_start_turn, ("counselor", "parent"))
         if human_turns > config.STALE_AFTER_TURNS:
-            reason = f"stale: {human_turns} turns since the nudge, too late to raise aloud"
+            reason = f"stale: {human_turns} turns since {flag.ladder_start_turn}, too late to raise aloud"
             actions += _transition(flag, "recap", reason, latest, now_ms)
         else:
             due.append(flag)
@@ -267,7 +276,7 @@ def _run_ladder(state: RoomState, seen: list[Turn], unseen_human_turns: bool, no
             actions.append(_log(now_ms, "ladder", f"{waiting} due, waiting: cooldown {remaining:.0f}s left", turn_id=latest))
             return actions
     flag = due[0]
-    reason = f"not clarified after {config.ESCALATE_AFTER_COUNSELOR_TURNS} counselor turn(s)"
+    reason = f"not clarified after {_turns_before_speaking(flag)} counselor turn(s)"
     actions.append(_log(now_ms, "ladder", f"{flag.id} escalates: {reason}; speaking at the next pause", flag.id, latest))
     actions.append(SpeakLine(flag_id=flag.id, text=flag.spoken_line))
     if len(due) > 1:
@@ -318,6 +327,35 @@ def mark_spoken(state: RoomState, flag_id: str, turn_id: str, now_ms: int) -> li
     flag = next(f for f in state.flags if f.id == flag_id)
     state.last_spoken_at = now_ms
     return _transition(flag, "spoken", "Beacon asked aloud", turn_id, now_ms)
+
+
+def counselor_action(state: RoomState, flag_id: str, action: CardAction, latest_turn_id: str, now_ms: int) -> list[Action]:
+    """A click on a nudge card. "dismiss" ends the flag without Beacon ever speaking about it;
+    "will_clarify" (once per flag) restarts the ladder at the newest turn and adds grace turns.
+    Only a nudged flag can be acted on; anything else is ignored with a log entry. rooms.py
+    checks that the click came from the counselor."""
+
+    def ignored(why: str) -> list[Action]:
+        return [_log(now_ms, "ladder", f"ignored counselor action {action} on {flag_id}: {why}", turn_id=latest_turn_id)]
+
+    flag = next((f for f in state.flags if f.id == flag_id), None)
+    if flag is None:
+        return ignored("no such flag")
+    if flag.state != "nudged":
+        # Includes a line that is already playing: _speak() marks the flag spoken before any audio.
+        return ignored(f"it is already {flag.state}")
+    if action == "dismiss":
+        flag.counselor_action = "dismissed"
+        return _transition(flag, "dismissed", "counselor: not an issue", latest_turn_id, now_ms)
+    if flag.counselor_action == "will_clarify":
+        # Once per flag: a second click must not postpone the family's question again.
+        return ignored("the counselor already said they will clarify")
+    flag.counselor_action = "will_clarify"
+    flag.ladder_start_turn = latest_turn_id
+    flag.grace_turns = config.CLARIFY_GRACE_COUNSELOR_TURNS
+    flag.history.append(FlagEvent(state="nudged", reason="counselor: will clarify", turn_id=latest_turn_id))
+    message = f"{flag.id} counselor will clarify; waiting {_turns_before_speaking(flag)} counselor turn(s) before speaking"
+    return [UpdateFlag(flag_id=flag.id), _log(now_ms, "ladder", message, flag.id, latest_turn_id)]
 
 
 def end_of_call(state: RoomState, now_ms: int) -> list[Action]:

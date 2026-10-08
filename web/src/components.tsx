@@ -1,6 +1,6 @@
 // Shared presentational pieces for the call and observer views: transcript, flag cards, status chips.
 import { useEffect, useRef } from "react";
-import type { ClientRole, Flag, FlagState, Role, RoomState, RoomStatus, Settings, Turn } from "./types";
+import type { CardAction, ClientRole, Flag, FlagState, Role, RoomState, RoomStatus, Settings, Turn } from "./types";
 
 export function speakerName(role: Role, settings: Settings): string {
   if (role === "counselor") return settings.counselor_name;
@@ -62,6 +62,7 @@ const STATE_LABELS: Record<FlagState, string> = {
   resolved: "Clarified",
   spoken: "Beacon asked",
   recap: "Saved for recap",
+  dismissed: "Dismissed",
   dropped: "Dropped",
 };
 
@@ -69,7 +70,29 @@ function StateBadge({ state }: { state: FlagState }) {
   return <span className={`badge state-${state}`}>{STATE_LABELS[state]}</span>;
 }
 
-export function FlagCard({ flag, detailed = false }: { flag: Flag; detailed?: boolean }) {
+function CardButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      className="flag-action"
+      onClick={(event) => {
+        // Space is the push-to-talk key. A button that kept focus after the click would be
+        // pressed again by the next Space, so give the focus back to the page.
+        event.currentTarget.blur();
+        onClick();
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+interface FlagCardProps {
+  flag: Flag;
+  detailed?: boolean; // observer: ids, evidence and the ladder history
+  onAction?: (action: CardAction) => void; // counselor only: shows the card's buttons while it is nudged
+}
+
+export function FlagCard({ flag, detailed = false, onAction }: FlagCardProps) {
   return (
     <article className={`flag-card flag-${flag.state}`}>
       <header className="flag-header">
@@ -82,6 +105,17 @@ export function FlagCard({ flag, detailed = false }: { flag: Flag; detailed?: bo
       <p className="flag-try">
         <strong>Try:</strong> {flag.suggested_clarification}
       </p>
+      {onAction && flag.state === "nudged" && (
+        <div className="flag-actions">
+          {/* "I'll clarify" works once per flag; "Not an issue" stays available after it. */}
+          {flag.counselor_action === "will_clarify" ? (
+            <span className="flag-note">Beacon will wait for you</span>
+          ) : (
+            <CardButton label="I'll clarify" onClick={() => onAction("will_clarify")} />
+          )}
+          <CardButton label="Not an issue" onClick={() => onAction("dismiss")} />
+        </div>
+      )}
       {detailed && (
         <dl className="flag-details">
           <dt>Evidence ({flag.evidence_turn_ids.join(", ")})</dt>
@@ -94,8 +128,12 @@ export function FlagCard({ flag, detailed = false }: { flag: Flag; detailed?: bo
           <dd>{flag.spoken_line}</dd>
           <dt>Documents</dt>
           <dd>{flag.doc_refs.length > 0 ? flag.doc_refs.join(", ") : "none cited"}</dd>
-          {/* The ladder counts turns after this one: the newest turn when the card appeared. */}
-          <dt>Ladder (card shown after {flag.created_at_turn})</dt>
+          {/* The ladder counts turns after the newest turn when the card appeared, or after the
+              counselor's "I'll clarify" if that came later. */}
+          <dt>
+            Ladder (card shown after {flag.created_at_turn}
+            {flag.ladder_start_turn !== flag.created_at_turn && `; counting from ${flag.ladder_start_turn}`})
+          </dt>
           <dd>
             <ol className="flag-history">
               {flag.history.map((event, i) => (

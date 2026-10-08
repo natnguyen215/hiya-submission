@@ -145,7 +145,10 @@ async def answer_summon(llm: LLM, state: RoomState, turn: Turn) -> SummonAnswer:
 
 
 def _open_issues(state: RoomState) -> str:
-    # By now end_of_call() has moved every nudged flag to "recap".
+    # By now end_of_call() has moved every nudged flag to "recap". Flags the counselor dismissed
+    # are left out on purpose. The parent's unanswered questions are listed from parent_questions,
+    # not from their flags, so dismissing an UNANSWERED_QUESTION card silences Beacon during the
+    # call but cannot remove the family's open question from the recap.
     lines = [f"{f.id} ({f.trigger}, saved for the recap): {f.counselor_card}" for f in state.flags if f.state == "recap"]
     lines += [f"{f.id} ({f.trigger}, asked aloud by Beacon): {f.counselor_card}" for f in state.flags if f.state == "spoken"]
     lines += [
@@ -171,7 +174,8 @@ async def generate_recap(llm: LLM, state: RoomState) -> Recap:
 def add_missing_follow_ups(recap: Recap, state: RoomState) -> list[str]:
     """The recap must list every open issue (recap-state flags, unanswered questions). Add any the
     LLM left out, using the flag's question for Beacon (spoken_line) or the parent's own words,
-    and return their ids for the log."""
+    and return their ids for the log. As in _open_issues(), a dismissed flag is not an open issue,
+    but a question the parent asked and nobody answered still is, dismissed card or not."""
     cited = {ref for follow_up in recap.follow_ups for ref in follow_up.refs}
     missing = [(f.id, f.spoken_line) for f in state.flags if f.state == "recap" and f.id not in cited]
     missing += [

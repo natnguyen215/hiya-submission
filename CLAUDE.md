@@ -29,14 +29,20 @@ is the validated JSON (`AnalyzerOutput` in `models.py`): candidate flags with ex
 open flags the counselor resolved, which parent questions were asked and answered. It never
 raises; on failure `.output` is empty and `.error` is set. `policy.after_analysis()` decides what to do with it:
 evidence gate, dedupe by `issue_key`, severity (`recap` flags never interrupt), the escalation
-ladder (nudge → resolved / spoken / recap), staleness, cooldown, and code-counted unanswered
-questions. It returns actions (`SendCard`, `UpdateFlag`, `SpeakLine`, `LogEntry`) that
+ladder (nudge → resolved / spoken / recap / dismissed), staleness, cooldown, and code-counted
+unanswered questions. It returns actions (`SendCard`, `UpdateFlag`, `SpeakLine`, `LogEntry`) that
 `rooms.execute()` carries out. `policy.py` does no I/O, reads no clock (callers pass `now_ms`) and
 calls no LLM, so it is unit-testable.
 
+The counselor can overrule Beacon from the nudge card: "Not an issue" (flag → `dismissed`, never
+spoken) and "I'll clarify" (stays `nudged`, one extra counselor turn, once per flag). The click
+arrives as a `flag_action` message; `policy.counselor_action()` validates and applies it, and
+`rooms.flag_action()` carries out the result.
+
 Two honest caveats. "Resolved" is the LLM's judgment: code only checks the flag is still
 `nudged`, not which turn resolved it. And a few speech mechanics live in `rooms.py`: the speaker
-drops a queued line whose flag is no longer `nudged`, `enqueue_speech()` dedupes by flag id, and
+drops a queued line whose flag is no longer `nudged`, `enqueue_speech()` dedupes by flag id,
+`flag_action()` withdraws a flag's queued line when the counselor clicks a card button, and
 summon answers share the queue but skip the ladder and cooldown and are never withdrawn.
 
 ## Life of a turn
@@ -61,6 +67,15 @@ execute: SendCard/UpdateFlag → flag_card/flag_updated to the observer, and to 
                      → broadcast turn_added, beacon_say, status → flag_updated → wait for playback
 end_call: cancels in-flight analysis and queued speech → policy.end_of_call() (nudged → recap)
           → analyzer.generate_recap() → add_missing_follow_ups() → unverified_numbers() → recap_ready
+
+rooms.handle() ── flag_action {flag_id, action: "dismiss" | "will_clarify"} ──▶ rooms.flag_action():
+    not the counselor? → log "ignored …", done
+    policy.counselor_action(): flag unknown / not nudged / second "will_clarify" → log "ignored …", done
+        dismiss      → state dismissed, counselor_action "dismissed"
+        will_clarify → ladder_start_turn = newest turn, grace_turns = CLARIFY_GRACE_COUNSELOR_TURNS,
+                       counselor_action "will_clarify", history entry "counselor: will clarify"
+    withdraw that flag's queued line (before any await) → flag_updated to observer + counselor
+    → write {"type": "counselor_feedback", action, flag, turn_id} to logs/*.jsonl
 ```
 
 **The ladder has no timer.** It only runs inside a successful analysis, and analyses only start
@@ -91,7 +106,7 @@ its audio) acks instantly.
 | `backend/app/docs.py` | loads `data/award_letter.md` and `data/glossary.md`; line ids like `L14`, `G9` |
 | `backend/app/main.py` | FastAPI: `/api/documents`, `/api/scripts/{name}`, `/ws`, serves `web/dist` |
 | `backend/prompts/` | `analyzer.txt`, `summon.txt`, `recap.txt` |
-| `backend/tests/` | `test_policy.py` (most behavior; `helpers.py` builds states and fake outputs), `test_smoke.py` (three WebSocket clients + FakeLLM), `test_analyzer.py`, `test_wakeword.py` |
+| `backend/tests/` | `test_policy.py` (most behavior, including the counselor's card buttons; `helpers.py` builds states and fake outputs), `test_smoke.py` (three WebSocket clients + FakeLLM), `test_rooms.py` (turn-taking and speech-queue regressions), `test_analyzer.py`, `test_wakeword.py` |
 | `eval/run.py` | offline eval over the scripts in its `SCRIPTS` list (`demo_call`, `control_call`; add a new script there), text only, virtual clock, no recap → `eval_results.md` |
 | `data/scripts/` | `demo_call.json` (planted moments, each with an `expect`), `control_call.json` (clean call) |
 | `web/src/` | React: `useRoom.ts` (WebSocket hook), `CallView.tsx`, `ObserverView.tsx`, `Recap.tsx`, `components.tsx`, `speech.ts` (push-to-talk + TTS), `simulate.ts` (script runner) |
@@ -130,8 +145,16 @@ manual microphone/playback check. The stretch "hybrid demo mode" was not built.
   analyses are failing); `Room.analyzed_ok` advances only on success or skip and feeds
   `should_analyze()`, so a parent turn whose analysis failed is re-analyzed with the next turn.
 - **`created_at_turn`** is the newest turn when the card appeared, possibly one the analyzer hadn't
-  seen; the ladder counts counselor turns after it, and that "not due yet" case logs nothing. The
-  observer's flag details show it as "card shown after tN".
+  seen. **`ladder_start_turn`** starts equal to it and is what the ladder counts from (counselor
+  turns for "due", human turns for "stale"); "I'll clarify" moves it to the newest turn and sets
+  `grace_turns`, so the flag is due after `ESCALATE_AFTER_COUNSELOR_TURNS + grace_turns` counselor
+  turns. The "not due yet" case logs nothing. The observer's flag details show "card shown after
+  tN", plus "counting from tM" once the two differ.
+- **`dismissed` is not `dropped`:** a dismissed flag still blocks its `issue_key`
+  (`_active_flag_with_key`), is still listed for the analyzer (`state=dismissed`), and is still
+  sent to the counselor. It is left out of the recap's open issues, but an unanswered parent
+  question is listed from `parent_questions`, so it reaches the recap even if its card was
+  dismissed.
 - **Speaking is deferred** if any human turn arrived during the LLM call; the rerun decides.
 - **Evidence rule lives on the trigger** (`Trigger.needs_parent_evidence`, default True). It drives
   both the evidence gate and `should_analyze()`'s skip after counselor turns.
@@ -139,11 +162,15 @@ manual microphone/playback check. The stretch "hybrid demo mode" was not built.
   because Beacon may read them aloud.
 - **`rooms.handle()` silently ignores** an observer `turn`, `ptt_start` while someone else holds the
   floor or the call isn't live, `ptt_stop` from a non-holder, and a stale `beacon_playback_done`.
+  A `flag_action` that can't be applied (wrong role, unknown flag, flag not `nudged`, second "I'll
+  clarify") changes nothing either, but leaves an "ignored …" entry in the Decision Log.
   The only errors sent back are "Start the call first." (a `turn` or `sim_turn` before the call is
   live) and "bad message: …" (from `main.py`, for a message after the join that doesn't parse). A
   first message that isn't a valid `join` gets no error; the socket is closed with code 1008.
 - **The parent** never receives flags or the decision log. **The counselor** receives flags that
   were nudged at some point, and never the decision log (`rooms._state_for`, `_counselor_sees`).
+- **Card buttons blur themselves** after a click (`CardButton` in `components.tsx`): Space is the
+  push-to-talk key, and a button that kept focus could be pressed again by it.
 - **Frontend:** `useRoom.ts`'s `handle()` routes `error` and `beacon_say` as events before
   `apply()` folds state messages; there is no React StrictMode on purpose (its double mount opens a
   phantom WebSocket join).
@@ -179,7 +206,8 @@ manual microphone/playback check. The stretch "hybrid demo mode" was not built.
 
 A card in the counselor's panel proves the flag was nudged, which rules out the evidence gate,
 recap severity and stale-at-creation. Then read the observer's Decision Log (each analysis has its
-raw output under "data"; the same entries are in `logs/<room>-<time>.jsonl`):
+raw output under "data"; the same entries are in `logs/<room>-<time>.jsonl`, which also holds one
+`counselor_feedback` record per accepted card click: `action`, the full `flag`, `turn_id`):
 
 | Log text | Meaning | Emitted at |
 |---|---|---|
@@ -188,11 +216,14 @@ raw output under "data"; the same entries are in `logs/<room>-<time>.jsonl`):
 | `due, waiting: cooldown Ns left` | 20 s cooldown since the last interjection | `policy._run_ladder` |
 | `due, waiting: one interjection at a time` | several flags were due at once; the oldest was queued, the rest wait (and may go stale) | `policy._run_ladder` |
 | `→ recap: stale: …` | too many turns passed before it could speak | `policy._run_ladder` |
+| `→ dismissed: counselor: not an issue` | dismissed by the counselor ("Not an issue"); never spoken, and the issue is not raised again | `policy.counselor_action` |
+| `counselor will clarify; waiting N counselor turn(s) before speaking` | the counselor clicked "I'll clarify": the count restarted at that turn, with one extra counselor turn | `policy.counselor_action` |
+| `ignored counselor action …` / `ignored … only the counselor can act on a card` | a late or invalid card click; nothing changed | `policy.counselor_action` / `rooms.flag_action` |
 | `analysis through … failed …` | LLM error; the ladder didn't run | `rooms._analysis_loop` |
-| `withdrew queued line …` | a human turn arrived before the pause | `rooms.add_turn` |
+| `withdrew queued line …` | a human turn arrived before the pause, or the counselor clicked a card button first | `rooms.add_turn` / `rooms.flag_action` |
 | `skipped line for …` | the flag changed state while queued | `rooms._speaker_loop` |
 | `no tab reported playback …` | it spoke, but no tab played or acked the audio | `rooms._speak` |
-| (no ladder line after an analysis) | not due yet: no counselor turn after "card shown after tN" | `policy._run_ladder` |
+| (no ladder line after an analysis) | not due yet: too few counselor turns after "card shown after tN" (or after "counting from tM" once the counselor clicked "I'll clarify") | `policy._run_ladder` |
 
 Also check the "Speech pending" chip: a line stuck in the queue usually means someone is still
 holding push-to-talk (the observer doesn't show who).

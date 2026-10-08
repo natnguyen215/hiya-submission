@@ -79,6 +79,10 @@ alongside to see the nudge cards.
 - [ ] "Beacon, what's a Parent PLUS loan?" spoken as the parent gets a spoken answer; "can of
       peas" and "campus" do not.
 - [ ] While Beacon speaks, push-to-talk is disabled in every tab and "Beacon is speaking" shows.
+- [ ] On a nudge card in the counselor window, click **I'll clarify**: the button is replaced by
+      "Beacon will wait for you". On another card, click **Not an issue**: the card turns grey
+      and says "Dismissed". After each click, hold the spacebar: it still starts push-to-talk
+      and does not press the card button again.
 - [ ] "Play Beacon audio here" on in the counselor tab only: you hear Beacon once. Turn it on in
       the parent tab too: you hear it twice. Turn all off: the call continues (no audio). Then
       set it back (counselor only); the choice is remembered per role in this browser.
@@ -140,6 +144,26 @@ answered. `policy.py`, plain deterministic Python, then decides:
 Every transition is logged with a reason in the observer's Decision Log and in
 `logs/<room>-<time>.jsonl`. All thresholds are in `backend/app/config.py` and can be overridden
 by environment variables.
+
+### Counselor controls
+
+The counselor is the expert on the call, so each nudge card has two small buttons. They appear
+only in the counselor's tab and only while the flag is `nudged`:
+
+- **I'll clarify** (once per flag): the flag stays `nudged`, the ladder restarts at the newest
+  turn, and Beacon waits `CLARIFY_GRACE_COUNSELOR_TURNS` (1) extra counselor turn before it may
+  ask. The card shows "Beacon will wait for you". When the counselor clarifies, the next analysis
+  reports it as usual → `resolved`.
+- **Not an issue:** the flag becomes `dismissed`. Beacon never speaks about it, the same
+  `issue_key` is not raised again, and it is not listed as an open issue in the recap. One
+  exception: a question the parent asked and nobody answered still appears in the recap's
+  follow-ups. The counselor can silence Beacon during the call, but not remove the family's open
+  question.
+
+Either click withdraws a line Beacon had queued for that flag. Once Beacon is already saying it,
+the click is too late and is ignored (and logged). Every accepted click is also written to the
+call's log file as a `counselor_feedback` record containing the whole flag, so dismissals can be
+collected later as labeled examples for tuning the analyzer.
 
 ### Where things are
 
