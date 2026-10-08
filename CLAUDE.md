@@ -28,7 +28,7 @@ Gemini never makes Beacon speak. `analyzer.analyze()` returns an `AnalysisResult
 is the validated JSON (`AnalyzerOutput` in `models.py`): candidate flags with exact quotes, which
 open flags the counselor resolved, which parent questions were asked and answered. It never
 raises; on failure `.output` is empty and `.error` is set. `policy.after_analysis()` decides what to do with it:
-evidence gate, dedupe by `issue_key`, severity (`recap` flags never interrupt), the escalation
+evidence gate, dedupe by `issue_key` and by moment (same trigger + parent turn), severity (`recap` flags never interrupt), the escalation
 ladder (nudge → resolved / spoken / recap / dismissed), staleness, cooldown, and code-counted
 unanswered questions. It returns actions (`SendCard`, `UpdateFlag`, `SpeakLine`, `LogEntry`) that
 `rooms.execute()` carries out. `policy.py` does no I/O, reads no clock (callers pass `now_ms`) and
@@ -194,7 +194,7 @@ renamed wake word still needs the README's manual microphone/playback check. The
 - **Add an LLM-detected trigger:** add a `Trigger` to `triggers.py` with `detected_by="llm"` (plus
   name, description, positive and negative examples, and `needs_parent_evidence`). No `models.py`/`types.ts`/frontend change is needed:
   trigger names are plain strings. Check existing descriptions for overlap (dedupe compares
-  `issue_key` only, so two triggers can flag one moment twice). Trigger examples go into the prompt
+  `issue_key`, and trigger + parent turn, so two *different* triggers can flag one moment twice). Trigger examples go into the prompt
   verbatim, so like the few-shot examples in `analyzer.txt` they must not reuse demo-script content.
   Consider a few-shot example in `analyzer.txt`. Add a test in `test_policy.py`
   (`helpers.new_flag(..., trigger=...)`), check `data/scripts/*.json` `expect.trigger` labels, and
@@ -217,6 +217,7 @@ raw output under "data"; the same entries are in `logs/<room>-<time>.jsonl`, whi
 | Log text | Meaning | Emitted at |
 |---|---|---|
 | `→ resolved: the counselor clarified it` | the LLM judged it resolved | `policy.after_analysis` |
+| `ignored [key]: same … moment as fN` | the LLM re-raised a flagged moment under a new key | `policy._add_new_flags` |
 | `due, deferred: newer turns not analyzed yet` | a turn arrived during the LLM call | `policy._run_ladder` |
 | `due, waiting: cooldown Ns left` | 20 s cooldown since the last interjection | `policy._run_ladder` |
 | `due, waiting: one interjection at a time` | several flags were due at once; the oldest was queued, the rest wait (and may go stale) | `policy._run_ladder` |

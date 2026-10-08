@@ -105,6 +105,14 @@ defaults are logged under "Tuned defaults".
   that rule lives on the trigger in `triggers.py`, so a new trigger evidenced by the counselor's
   words only needs `needs_parent_evidence=False`. Known limitation: a one-word insertion like
   "not" can still pass; the gate stops invented quotes, not every paraphrase.
+- **Dedupe also by moment: same trigger + same parent turn = same flag.** The prompt says never
+  to reuse an `issue_key`, and Gemini obeyed by re-raising a resolved SAP flag as
+  `sap_not_explained_2` with identical evidence, which then reached the recap as a follow-up
+  about something the counselor had explained (seen in the real-Gemini browser run and in round
+  0). Code now ignores a new flag whose trigger matches an existing flag's and which cites one
+  of its parent turns, logged as "same ... moment as fN". Trade-off: two different misreads of
+  the same kind in one parent turn become one card. Rejected: a stronger prompt line alone (the
+  model already had one) and fuzzy-matching issue keys (opaque).
 - **Dropped flags are kept (state `dropped`) so the observer can show why**, but they don't count
   for dedupe, so a later, well-evidenced flag with the same `issue_key` can still be raised.
 - **Skip the LLM after a counselor turn when no flag is nudged and no question is open.** While
