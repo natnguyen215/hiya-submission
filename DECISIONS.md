@@ -274,6 +274,46 @@ build plan are logged under "Tuned defaults".
   the official reference, and the definitions avoid loan limits and interest rates, which change
   yearly. A line-by-line check against studentaid.gov is still open.
 
+## Eval grading and modes
+
+- **Paced eval mode (`--paced`) next to lock-step.** Lock-step analyzes every turn, and acts on
+  it, before the next turn exists, so it never shows what a live call does: an analysis that
+  misses the turn spoken during it, a line withdrawn because someone talked first, a flag that
+  goes stale while the LLM works. Paced mode rebuilds rooms.py's timing on the virtual clock and
+  reuses the policy functions unchanged (it does not import rooms.py):
+  - each script turn starts after its pause and arrives when it ends (words × `MS_PER_WORD`),
+    whether or not an analysis is running;
+  - an analysis starts when a turn has arrived, none is running, and `MIN_SECONDS_BETWEEN_LLM_CALLS`
+    have passed since the previous start. It sees only the turns that arrived by then and
+    finishes after the LLM call's measured network time (`--assumed-latency-ms`, default 1500,
+    with `--cache`, since a cached call takes no time). A turn arriving meanwhile is "seen late"
+    and triggers one more pass, as `rooms.request_analysis` does; `after_analysis` gets the
+    `turn_count` that analysis saw, so "deferred" and the in-progress rule behave as live;
+  - a queued line is said `PAUSE_BEFORE_SPEAK_MS` after it was queued (or after the last turn
+    ended, whichever is later) unless a person presses push-to-talk first; then it is withdrawn
+    when that turn arrives, with rooms.py's log text, and the next analysis decides again. Summon
+    answers are never withdrawn. Beacon's line holds the floor for 2 s +
+    `PLAYBACK_FALLBACK_MS_PER_WORD` per word and is marked spoken when it starts, as in
+    `rooms._speak`; script turns wait until it ends.
+
+  What it still does not model: one person's clock for everyone (no clock skew between tabs, no
+  speech-recognition latency between release and the turn arriving); the throttle for summon
+  answers (they are ready after their own latency); and people reacting to Beacon. A scripted
+  reply to Beacon ("Oh, good catch...") is said whether or not Beacon spoke, so in paced mode a
+  withdrawn line is often followed by the very clarification it would have prompted. Paced
+  numbers show how often Beacon gets the floor at all; lock-step numbers stay the comparable
+  measure of perception. Rejected: replacing lock-step (every earlier round would stop being
+  comparable) and importing rooms.py with a fake clock (asyncio sleeps and WebSockets, much
+  harder to follow than one event loop over a list of candidate events).
+- **Each eval run rewrites only its own mode's half of `eval_results.md`.** The two summary
+  tables are merged into one table at the top (one column per mode); each half starts with its
+  summary as JSON in an HTML comment, so a paced run can rebuild the table without re-running
+  lock-step (a full `--runs 3` costs about 300 requests of the 500-a-day quota). Rejected:
+  `--paced` running both modes (double the quota) and two results files (the README links one).
+- **Per script and run, the report counts** analyses, turns seen late, lines withdrawn, flags
+  deferred, flags stale (on the ladder or at creation), and "spoke when due": of the flags the
+  ladder ever found due, how many Beacon said aloud.
+
 ## Tuned defaults
 
 | Setting | Planned default | Value | Why |
