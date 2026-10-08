@@ -99,6 +99,26 @@ build plan are logged under "Tuned defaults".
   card and didn't clarify". The analyzer judges resolution against the flag's evidence turns.
   The count itself uses `ladder_start_turn`, which starts equal to `created_at_turn` and only
   moves when the counselor clicks "I'll clarify" (see "Counselor controls").
+- **A counselor turn already in progress when the card appeared does not count** (2026-10-08
+  audit). Position alone said "after the card" for a counselor who was holding push-to-talk when
+  the card landed, so a sentence started before they could have read it counted as "saw it and
+  moved on". `Flag.ladder_start_ms` (set to `now_ms` when the flag is created, and again on "I'll
+  clarify") is compared with `Turn.started_at`: only counselor turns that started at or after it
+  count. `started_at` is the push-to-talk press or the first keystroke, from the browser's clock,
+  so the rule assumes one clock (true on one machine; across machines, synced clocks). Rejected:
+  re-stamping turns with the server's receive time (it would measure the end of the turn, which
+  is exactly the information this rule needs) and a fixed "reading time" after the card (a guess,
+  and wrong for typed turns).
+- **Staleness counts from the counselor's first chance, not from the card** (2026-10-08 audit).
+  Staleness used to be checked only once a flag was due, counting human turns since
+  `ladder_start_turn`. A parent who splits a reply over three push-to-talk presses ("Oh," "that
+  helps a lot," "honestly.") then made the flag stale at the counselor's very first turn after
+  the card: straight to the recap, never spoken, although the counselor had only now moved on.
+  Now a flag is stale when more than `STALE_AFTER_TURNS` human turns have passed since the first
+  counting counselor turn; with none yet it is neither due nor stale. Stale-at-creation (old
+  evidence, an old unanswered question) is unchanged. Rejected: raising `STALE_AFTER_TURNS` (it
+  would also let a flag speak long after the counselor moved on) and counting only counselor turns
+  (a long parent reply in between does make an interjection stale).
 - **One interjection per analysis**, oldest due flag first; others wait (and may go stale).
 - **Staleness is also checked at creation:** a flag whose evidence (or an unanswered question)
   is already more than `STALE_AFTER_TURNS` turns old goes straight to the recap. Late detections
@@ -120,6 +140,22 @@ build plan are logged under "Tuned defaults".
   model already had one) and fuzzy-matching issue keys (opaque).
 - **Dropped flags are kept (state `dropped`) so the observer can show why**, but they don't count
   for dedupe, so a later, well-evidenced flag with the same `issue_key` can still be raised.
+- **A resolved flag frees its `issue_key` too** (2026-10-08 audit). A key is blocked only while a
+  flag holding it is `nudged`, `spoken`, `recap` or `dismissed`. When the parent relapses into a
+  belief the counselor already corrected and the model reuses the key, the relapse used to be
+  logged as a duplicate of the resolved flag and never reached the counselor. One prompt line
+  says a resolved flag does not cover a later parent turn that falls back into the same belief.
+  Dedupe by moment is unchanged, so the turn the counselor already resolved can't be re-flagged.
+  Unanswered-question flags stay one per question: the analyzer may list one as resolved without
+  reporting the answer, and that must not raise it again. Rejected: freeing `spoken` keys too
+  (Beacon already asked aloud; a second spoken question about it would be nagging, and the recap
+  carries it).
+- **A parent can close their own question** (2026-10-08 audit). There was no "never mind" path:
+  "Wait, when is that due? Oh never mind, I see it" stayed an open question, and Beacon would ask
+  it aloud. `questions_answered` may now cite a later parent turn (withdrawn, or answered by the
+  parent themselves); code logs "tN withdrew the question from tM" and resolves an open card. The
+  question turn itself and Beacon turns cannot close it. Rejected: a new `questions_withdrawn`
+  field (a schema change for the same fact: which later turn closed it).
 - **Skip the LLM after a counselor turn when no flag is nudged and no question is open.** While
   every LLM trigger needs the parent's reply as evidence, nothing new could be perceived. This
   roughly halves calls on the free tier and is logged in the decision log.
@@ -145,7 +181,8 @@ build plan are logged under "Tuned defaults".
   the flag (pure, unit-tested); `rooms.flag_action()` checks the role, sends the update, writes
   the feedback record and touches the speech queue.
 - **`dismissed` is a new state, and it still blocks its `issue_key`.** A `dropped` flag frees its
-  key because its evidence failed, so a better-evidenced flag may come back. A dismissed flag was
+  key because its evidence failed, so a better-evidenced flag may come back (and since the
+  2026-10-08 audit a `resolved` one does too, so a relapse can be raised). A dismissed flag was
   judged by the expert, and raising it again would be nagging. Key-based dedupe can't catch the
   same issue under a reworded key, so the analyzer also sees `state=dismissed` under "Existing
   flags" and one prompt line tells it not to raise that issue again. Rejected: reusing `resolved`
@@ -159,9 +196,9 @@ build plan are logged under "Tuned defaults".
   is the best evidence there is. If the question is answered later, it drops out as usual.
 - **"I'll clarify" restarts the ladder and works once per flag.** It sets `ladder_start_turn` to
   the newest turn and `grace_turns` to `CLARIFY_GRACE_COUNSELOR_TURNS` (1), so Beacon waits for
-  two counselor turns from the click instead of one; staleness is counted from the click too
-  (`STALE_AFTER_TURNS` itself is unchanged: two counselor turns and a parent reply still fit in
-  3). Once only, because a second click would let the counselor postpone the family's question
+  two counselor turns from the click instead of one; staleness is counted from the counselor's
+  first turn after the click (`STALE_AFTER_TURNS` itself is unchanged). The click also resets
+  `ladder_start_ms`. Once only, because a second click would let the counselor postpone the family's question
   for as long as they keep clicking; if it really isn't an issue, "Not an issue" says so and is
   logged as that. Rejected: a wall-clock snooze (the ladder has no timer and counts in turns).
 - **Either click withdraws a line already queued for that flag, before any `await`.** After
@@ -192,6 +229,13 @@ build plan are logged under "Tuned defaults".
   unprompted interjections.
 - **The opening line says Beacon is an AI** and teaches the summon form ("just start with my
   name"): disclosure matters, and a family shouldn't mistake it for another staff member.
+- **Live voice gaps leave out `PTT_REACTION_MS` (600 ms)** (2026-10-08 audit). A voice turn's
+  `gap_ms` runs to the push-to-talk press, and reaching for the key is not hesitation; in live
+  testing nearly every voice turn read as a pause. `rooms.handle` subtracts it for
+  `source == "voice"` only, floored at 0. Typed turns (stamped at the first keystroke) and script
+  turns (the script's planted pause) are unchanged, so the planted 3000 ms pauses still read as
+  long. Rejected: raising `NOTABLE_GAP_MS` for everyone (it would hide the planted pause) and
+  measuring from the first recognized word (Chrome's interim results arrive late and unevenly).
 - **Summon answers: about 20 words, never more than 25.** A definition needs a sentence or two;
   anything over 25 words is logged as a warning like every other line.
 - **Push-to-talk is first come, first served on the server too:** `ptt_start` is ignored while
@@ -253,11 +297,21 @@ build plan are logged under "Tuned defaults".
 - **Recap numbers are checked by code**: every number in a recap item must appear in a line, turn
   or flag evidence the item cites; misses are listed as "unverified" in the recap and the log.
 - **Recap open issues are checked by code too:** every recap-state flag and unanswered question
-  must be cited by a follow-up; any the LLM left out is added by code (using the flag's question
-  for Beacon or the parent's own question), logged, and number-checked like the rest. Flags Beacon asked aloud are passed to the
+  must be cited by a follow-up; any the LLM left out is added by code (using the flag's
+  `family_question` or the parent's own question), logged, and number-checked like the rest.
+- **`family_question` on every flag** (2026-10-08 audit). Injected follow-ups used to reuse
+  `spoken_line`, which is addressed to the counselor ("Quick check for Maria: ..."), so the
+  family's recap read as if it were talking about them. The analyzer now also writes the same
+  question phrased for the family to ask the aid office later; code-made unanswered-question
+  flags use the parent's own question, as `UNANSWERED_LINE` quotes it. `_open_issues` passes it
+  to the recap prompt next to the card. Rejected: rewriting `spoken_line` in code (string
+  surgery on LLM output) and a second LLM call at recap time (the recap LLM already writes its
+  own follow-ups; this is only the fallback when it leaves one out). Flags Beacon asked aloud are passed to the
   LLM so it can add a follow-up if the counselor never answered.
 - **Demo script trimmed to 35 turns (~600 words).** The first draft ran about 4.5 minutes; the
   clear stretch was cut from 6 to 4 turns and several lines shortened. Planted moments unchanged.
+  (36 turns since the 2026-10-08 audit: d19a gives the unanswered question its third counselor
+  non-answer.)
 
 - **Eval scripts beyond the demo** (2026-10-08): `demo_call_stt_noise` (the demo as Chrome
   would transcribe it: lowercase, no question marks, numbers in mixed forms, a few mis-hearings
@@ -275,6 +329,30 @@ build plan are logged under "Tuned defaults".
   yearly. A line-by-line check against studentaid.gov is still open.
 
 ## Eval grading and modes
+
+- **Grade what Beacon said, not only the state it reports** (2026-10-08 audit). A summon counted
+  as "answered" whenever the model said `answered_from_documents`, and a moment as "spoken"
+  whenever the flag reached that state. Now every answered summon carries `expect.refs` (the
+  document lines its note already named; the two broad summons in live_regressions, whose notes
+  name none, accept the letter's header and summary lines L1–L3, L9, L16–L20 and G4) and passes
+  only with `answered_from_documents`, at most `SPOKEN_WORDS_WARNING` words and one expected ref
+  cited; a "declined" passes only without `answered_from_documents` and without a dollar amount.
+  Every spoken moment carries `expect.mentions` (lowercase keywords, any one suffices), checked
+  against the Beacon turn that `mark_spoken()` recorded for that flag, not any Beacon turn. And
+  `passed` requires the flag's trigger to equal `expect.trigger` when one is given. Rejected:
+  an LLM judge for answers (it would grade the model with the model).
+- **d23 is labeled "quiet", not "UNEXPLAINED_JARGON → recap".** Its old label passed on "none" in
+  every run, so the summary counted it as a detection that never happened. "quiet" means any state
+  except spoken; the summary reports quiet moments in their own sentence. `expect.flag_required`
+  adds "and a flag must exist" (used in live_patterns (iii)), and `expect.outcome` may be a list.
+- **The eval no longer calls `end_of_call()`.** Moments are scored as the call left them, so a flag
+  still waiting on the counselor reads `nudged`, not the `recap` that end_of_call would make it.
+- **New script `live_patterns`** with the timing patterns the audit found: (i) a relapse two turns
+  after a correction, (ii) a misread followed by three short parent presses, then one counselor
+  turn, (iii) two misreads back to back with the second due inside the cooldown of the first
+  interjection, (iv) a question the parent withdraws, (v) a 2.6 s pause before "okay" after a
+  logistics sentence ((v) is also in adversarial_clean). Its lines share no six-word phrase with
+  the analyzer prompt.
 
 - **Paced eval mode (`--paced`) next to lock-step.** Lock-step analyzes every turn, and acts on
   it, before the next turn exists, so it never shows what a live call does: an analysis that
@@ -319,8 +397,34 @@ build plan are logged under "Tuned defaults".
 | Setting | Planned default | Value | Why |
 |---|---|---|---|
 | UNANSWERED_AFTER_COUNSELOR_TURNS | 2 | 2 (was 1 until the 2026-10-08 ladder changes) | The unanswered-question flag goes through the same ladder as every other flag, so the total wait before Beacon speaks is UNANSWERED_AFTER + ESCALATE_AFTER counselor turns. It was 1 (a card after the first non-answer, Beacon asks after the second), but in the control call the model credits an answer one analysis late, so a false "Maria asked a question that hasn't been answered yet" card appeared right after the counselor had answered, one counselor press away from a false interjection. With 2 + 1 that card can only appear after two counselor turns without an answer, and Beacon asks after the third. To keep planted moment d17 ending in `spoken`, the demo scripts gained one more counselor non-answer (d19a/s19a, "you can change your mind on any award..."). Rejected: special-casing this trigger to skip the nudge; raising ESCALATE_AFTER_COUNSELOR_TURNS (it would slow every misread too). |
+| PTT_REACTION_MS | (new) | 600 | Added in the 2026-10-08 audit: subtracted from live voice turns' `gap_ms`, the time to reach the push-to-talk key. About the reaction time of a deliberate key press; small enough that a real 3-second hesitation still reads as long (2.4 s ≥ `NOTABLE_GAP_MS`). |
 
 ## Tuning log
+
+### 2026-10-08: audit fixes to the ladder and the grading (re-run pending)
+
+An audit found the ladder correct for the world the lock-step eval constructs but not for a live
+call, and the eval grading some outcomes by the model's self-report. Changes, each with its entry
+above: staleness counted from the counselor's first chance; counselor turns in progress when the
+card appeared don't count; `resolved` frees its key; `UNANSWERED_AFTER_COUNSELOR_TURNS` 1 → 2 (and
+a 36th demo line, d19a/s19a, so d17 still ends `spoken`); a parent can withdraw a question;
+`PTT_REACTION_MS`; `family_question`; stricter grading; `live_patterns`; `--paced`.
+
+- **Not measured yet.** No API key was available after these changes, so neither
+  `python -m eval.run --runs 3` nor `--paced --runs 3` has run on them, and `eval_results.md`
+  still holds round 2's lock-step report. Expected effects to check: demo moments unchanged in
+  lock-step (d17 now needs three counselor non-answers, which the script provides), the control
+  call's late-credited question no longer produces a card, and the stricter grading may fail
+  summons that cite an unexpected line.
+- **Harness checks that did run:** `--cache --runs 1` in both modes (every request failed for
+  lack of a key, and the report said so at the top), and a scratch dry run with a scripted fake
+  LLM that perceives every planted moment correctly. In lock-step it passed every planted moment
+  of demo_call and live_patterns. In paced mode, with 1.5 s per analysis, Beacon spoke on none of
+  them: the scripted counselor starts the next line 0.4–1.2 s after the previous one, sooner than
+  an analysis plus `PAUSE_BEFORE_SPEAK_MS`, so every queued line was withdrawn (or the counselor's
+  next turn had started before the card appeared and didn't count), and the script's own
+  clarification then resolved the flag. That is the live behavior paced mode exists to show; how
+  much of it survives real Gemini latency is the first thing to read in the next paced run.
 
 ### 2026-10-08: repeated runs and question tracking
 

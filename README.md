@@ -17,8 +17,14 @@ people, the school and the award letter are fictional. The amounts are illustrat
 
 ## Does it work?
 
-The eval replays scripted calls through the real analyzer and policy. Each script ran 3 times
-with `gemini-3.5-flash-lite` on 2026-10-08 (307 requests, 0 errors):
+The eval replays scripted calls through the real analyzer and policy.
+
+> **These numbers are from before the ladder changes; re-run pending.** They come from round 2
+> (2026-10-08), before the escalation-ladder fixes, the stricter grading (summon citations, what
+> Beacon actually said, the trigger) and the new paced mode. No API key was available to re-run
+> the eval after those changes, so `live_patterns` and paced mode have no results yet.
+
+Each script ran 3 times with `gemini-3.5-flash-lite` on 2026-10-08 (307 requests, 0 errors):
 
 | Script | What it tests | Result |
 |---|---|---|
@@ -28,10 +34,17 @@ with `gemini-3.5-flash-lite` on 2026-10-08 (307 requests, 0 errors):
 | `adversarial_clean` | correct restatements, jargon explained at once, "mm-hm" after logistics | 0 cards, 0 spoken |
 | `live_regressions` | failures from live testing, replayed | 3/3 in 3 of 3 runs |
 | `summon_checks` | 10 questions to Beacon, 2 of them outside the documents | 10/10 in 3 of 3 runs |
+| `live_patterns` | a relapse after a correction, a reply split over three presses, two misreads back to back, "never mind", a pause after logistics | not run yet |
 
 Full transcripts and every decision: [`eval_results.md`](eval_results.md). Each tuning step and
-its before-and-after numbers: the "Tuning log" in [`DECISIONS.md`](DECISIONS.md). 96 unit and
+its before-and-after numbers: the "Tuning log" in [`DECISIONS.md`](DECISIONS.md). 114 unit and
 WebSocket tests run without network access.
+
+The eval has two modes. **Lock-step** (the default) analyzes every turn before the next one
+arrives: it measures perception, and its numbers compare across rounds. **Paced** (`--paced`)
+replays the live pipeline's timing on a virtual clock: turns keep arriving while the LLM works,
+and Beacon's line is withdrawn when someone starts talking first. It shows how often Beacon
+actually gets the floor. `eval_results.md` shows both side by side.
 
 ## Quick start
 
@@ -57,7 +70,8 @@ Other commands:
 
 - `make dev`: FastAPI with reload on :8000, and Vite on <http://localhost:5173> (same paths).
 - `make test`: the unit and WebSocket tests.
-- `make eval`: the eval. `make eval ARGS=--cache` reuses cached LLM responses.
+- `make eval`: the eval. `make eval ARGS=--cache` reuses cached LLM responses, and
+  `make eval ARGS=--paced` runs the paced mode.
 
 Without a key, the app runs but sends nothing to Gemini. The status shows "analyzer unavailable".
 Beacon says its opening line, and answers a summon with "Sorry, I couldn't look that up just
@@ -187,12 +201,23 @@ Then `policy.py`, plain deterministic Python, decides what to do:
 1. **Nudge.** A private card in the counselor's window tells what seems misunderstood, and
    suggests a clarification. The parent sees nothing.
 2. **Check.** Each later analysis reports whether the counselor resolved it. If yes: `resolved`,
-   and Beacon stays silent.
-3. **Speak.** After `ESCALATE_AFTER_COUNSELOR_TURNS` counselor turns without a fix, Beacon asks at
-   the next pause: nobody holds push-to-talk, and 700 ms are quiet. Result: `spoken`.
+   and Beacon stays silent. If the parent later falls back into the same belief, that is a new
+   card.
+3. **Speak.** The ladder counts the counselor's turns after the card. A turn counts only if the
+   counselor started it after the card appeared: a sentence already in progress was not a
+   decision to move on. After `ESCALATE_AFTER_COUNSELOR_TURNS` (1) such turns without a fix,
+   Beacon asks at the next pause: nobody holds push-to-talk, and 700 ms are quiet. Result:
+   `spoken`. If someone starts talking first, Beacon withdraws the line and the next analysis
+   decides again.
 4. **Stale.** Sometimes Beacon cannot speak in time, for example because of the 20-second
-   cooldown. If more than `STALE_AFTER_TURNS` turns have passed, the card goes to the recap:
-   `recap`.
+   cooldown. If more than `STALE_AFTER_TURNS` (3) turns have passed since the counselor's first
+   chance (their first counting turn), the card goes to the recap: `recap`. The count starts at
+   the counselor's first chance, not at the card, so a parent who answers in several short
+   presses does not use up the counselor's turns.
+
+An unanswered parent question gets its card after `UNANSWERED_AFTER_COUNSELOR_TURNS` (2)
+counselor turns without an answer, so Beacon asks after the third. If the parent says "never
+mind" or answers it themselves, the question is closed.
 
 The observer's Decision Log shows each transition and its reason. So does
 `logs/<room>-<time>.jsonl`. All thresholds are in `backend/app/config.py`. An environment
@@ -242,8 +267,8 @@ records are labeled examples for tuning the analyzer later.
 - Prototype: one process, rooms in memory, no authentication. Only log files persist.
 - Chrome only (Web Speech API). Turns use push-to-talk. There is no continuous listening and no
   speaker separation.
-- Pause timing (`gap_ms`) uses the clock of each browser tab. This is correct on one machine but
-  skewed across machines. One person who plays both roles adds window-switching time to each
+- Pause timing (`gap_ms`) and the "started after the card" rule use the clock of each browser
+  tab. This is correct on one machine but skewed across machines. One person who plays both roles adds window-switching time to each
   pause (see "Playing both roles yourself?").
 - The analyzer can miss a moment or misjudge its severity. The design makes a miss cheap (the
   recap catches it) and a false interruption rare (evidence gate, private card first, cooldown).

@@ -28,9 +28,11 @@ Gemini never makes Beacon speak. `analyzer.analyze()` returns an `AnalysisResult
 is the validated JSON (`AnalyzerOutput` in `models.py`): candidate flags with exact quotes, which
 open flags the counselor resolved, which parent questions were asked and answered. It never
 raises; on failure `.output` is empty and `.error` is set. `policy.after_analysis()` decides what to do with it:
-evidence gate, dedupe by `issue_key` and by moment (same trigger + parent turn), severity (`recap` flags never interrupt), the escalation
-ladder (nudge → resolved / spoken / recap / dismissed), staleness, cooldown, and code-counted
-unanswered questions. It returns actions (`SendCard`, `UpdateFlag`, `SpeakLine`, `LogEntry`) that
+evidence gate, dedupe by `issue_key` (while a flag holding it is nudged, spoken, recap or dismissed;
+`resolved` and `dropped` free it) and by moment (same trigger + parent turn), severity (`recap` flags
+never interrupt), the escalation ladder (nudge → resolved / spoken / recap / dismissed), staleness,
+cooldown, and code-counted unanswered questions (a later parent turn can also close the parent's own
+question: "withdrew"). It returns actions (`SendCard`, `UpdateFlag`, `SpeakLine`, `LogEntry`) that
 `rooms.execute()` carries out. `policy.py` does no I/O, reads no clock (callers pass `now_ms`) and
 calls no LLM, so it is unit-testable.
 
@@ -52,7 +54,7 @@ The role is fixed per WebSocket by its `join` message; a `turn` carries no role.
 
 ```
 rooms.handle() ── turn / sim_turn ──▶ rooms.add_turn():
-    store Turn (ids t1, t2, … in transcript order, Beacon's turns included)
+    store Turn (ids t1, t2, … in transcript order, Beacon's turns included; a voice turn's gap_ms leaves out PTT_REACTION_MS)
     wake word? → count it in speech_pending, start _answer_summon task   (before any await, on purpose)
     write logs/*.jsonl, broadcast turn_added, withdraw queued interjections, send status
     request_analysis(): one _analysis_loop per room; a turn arriving mid-analysis sets analysis_dirty → one more pass
@@ -72,11 +74,19 @@ rooms.handle() ── flag_action {flag_id, action: "dismiss" | "will_clarify"} 
     not the counselor? → log "ignored …", done
     policy.counselor_action(): flag unknown / not nudged / second "will_clarify" → log "ignored …", done
         dismiss      → state dismissed, counselor_action "dismissed"
-        will_clarify → ladder_start_turn = newest turn, grace_turns = CLARIFY_GRACE_COUNSELOR_TURNS,
+        will_clarify → ladder_start_turn = newest turn, ladder_start_ms = now, grace_turns = CLARIFY_GRACE_COUNSELOR_TURNS,
                        counselor_action "will_clarify", history entry "counselor: will clarify"
     withdraw that flag's queued line (before any await) → flag_updated to observer + counselor
     → write {"type": "counselor_feedback", action, flag, turn_id} to logs/*.jsonl
 ```
+
+**The ladder** (`policy._run_ladder`, for each `nudged` flag): it counts the counselor turns after
+`ladder_start_turn` that *started* at or after `ladder_start_ms` (a turn already in progress when
+the card appeared doesn't count). With none yet, the flag is neither due nor stale. The first of
+them is the counselor's "first chance"; more than `STALE_AFTER_TURNS` human turns after it →
+`recap` ("stale"). Otherwise, with `ESCALATE_AFTER_COUNSELOR_TURNS + grace_turns` of them, the
+flag is due: deferred if a human turn arrived during the LLM call, waiting during the cooldown,
+one interjection at a time, else a `SpeakLine`.
 
 **The ladder has no timer.** It only runs inside a successful analysis, and analyses only start
 when a human turn arrives. An expired cooldown, a recovered LLM or a failed parent-turn analysis is
@@ -106,10 +116,10 @@ its audio) acks instantly.
 | `backend/app/docs.py` | loads `data/award_letter.md` and `data/glossary.md`; line ids like `L14`, `G9` |
 | `backend/app/main.py` | FastAPI: `/api/documents`, `/api/scripts/{name}`, `/ws`, serves `web/dist` |
 | `backend/prompts/` | `analyzer.txt`, `summon.txt`, `recap.txt` |
-| `backend/tests/` | `test_policy.py` (most behavior, including the counselor's card buttons; `helpers.py` builds states and fake outputs), `test_smoke.py` (three WebSocket clients + FakeLLM), `test_rooms.py` (turn-taking and speech-queue regressions), `test_analyzer.py` (prompt rendering; prompt examples must not reuse script lines), `test_wakeword.py`, `test_scripts.py` (every script well-formed and registered in the eval) |
+| `backend/tests/` | `test_policy.py` (most behavior, including the counselor's card buttons; `helpers.py` builds states and fake outputs), `test_smoke.py` (three WebSocket clients + FakeLLM), `test_rooms.py` (turn-taking and speech-queue regressions), `test_analyzer.py` (prompt rendering; prompt examples must not reuse script lines), `test_wakeword.py`, `test_scripts.py` (every script well-formed and registered in the eval), `test_eval.py` (the eval's scorer and paced timing, FakeLLM) |
 | `eval/browser_check.js` | optional Playwright check of the UI against a running server; Playwright is installed outside the repo (header says how) |
-| `eval/run.py` | offline eval over the scripts in its `SCRIPTS` list (add a new script there and to `SCRIPTS` in `ObserverView.tsx`; `CLEAN_SCRIPTS` get the "≤1 flag, 0 spoken" target), text only, virtual clock, no recap, `--runs N` repeats each script → `eval_results.md` |
-| `data/scripts/` | `demo_call.json` (planted moments, each with an `expect`), `demo_call_stt_noise.json` (the same call as Chrome might transcribe it), `control_call.json` and `adversarial_clean.json` (clean calls), `live_regressions.json` (failures seen in live testing), `summon_checks.json` (questions to Beacon; `expect.outcome` "declined" = not in the documents) |
+| `eval/run.py` | offline eval over the scripts in its `SCRIPTS` list (add a new script there and to `SCRIPTS` in `ObserverView.tsx`; `CLEAN_SCRIPTS` get the "≤1 flag, 0 spoken" target), text only, virtual clock, no recap, `--runs N` repeats each script. Lock-step by default (each turn analyzed before the next); `--paced` replays rooms.py's timing (turns arrive during analyses, lines get withdrawn). Each mode rewrites its own half of `eval_results.md`; the table at the top shows both. Grading checks what was said: summon refs and word count, `expect.mentions` in the spoken line, the trigger |
+| `data/scripts/` | `demo_call.json` (planted moments, each with an `expect`), `demo_call_stt_noise.json` (the same call as Chrome might transcribe it), `control_call.json` and `adversarial_clean.json` (clean calls), `live_regressions.json` (failures seen in live testing), `live_patterns.json` (live timing patterns: relapse, split reply, back-to-back misreads, "never mind", a pause after logistics), `summon_checks.json` (questions to Beacon; `expect.outcome` "declined" = not in the documents). `expect.outcome` may be a list; "quiet" = any state except spoken (`flag_required` also needs a flag); answered summons carry `refs`, spoken moments `mentions` |
 | `web/src/` | React: `useRoom.ts` (WebSocket hook), `CallView.tsx`, `ObserverView.tsx`, `Recap.tsx`, `components.tsx`, `speech.ts` (push-to-talk + TTS), `simulate.ts` (script runner) |
 | `tasks.py` / `Makefile` | task runner; the Makefile only calls `tasks.py` |
 | `PLAN.md`, `DECISIONS.md`, `WRITEUP.md`, `DEMO.md` | plan + milestone checklist; decision and tuning log; challenge write-up (its "AI tools used" section is a placeholder for the author); demo video run-of-show |
@@ -120,7 +130,7 @@ its audio) acks instantly.
   pass eval flags as `make eval ARGS=--cache`). `tasks.py` always uses `./.venv`, so run `install`
   first (it also needs Node 20.19+ on the 20.x line, or 22.12+, for `npm install` in `web/`).
 - Without the task runner: `pip install -r requirements.txt`, then from the repo root
-  `python -m pytest -q` (pytest.ini sets `pythonpath`) and `python -m eval.run [--cache] [--script demo_call] [--runs 3]`.
+  `python -m pytest -q` (pytest.ini sets `pythonpath`) and `python -m eval.run [--cache] [--script demo_call] [--runs 3] [--paced [--assumed-latency-ms 1500]]`.
 - `run` serves everything at http://localhost:8000: `/call?room=demo&role=counselor`,
   `/call?room=demo&role=parent`, `/observer?room=demo` (needs `build` first). `dev` runs uvicorn
   with reload on :8000 plus Vite on :5173.
@@ -132,14 +142,22 @@ its audio) acks instantly.
 
 ## Status
 
-Latest Gemini eval (round 2, 2026-10-08, 3 runs of six scripts, `gemini-3.5-flash-lite`, thinking
-`low`, 0 errors): demo_call and demo_call_stt_noise 8/8 planted moments in every run; control
-and adversarial clean calls ≤1 private nudge and 0 spoken in every run; live_regressions and
-summon_checks pass in every run. See `eval_results.md` and DECISIONS.md's "Tuning log". A
-Playwright run against real Gemini passed 20/20 browser checks (live card buttons, summon, a full
-demo simulation and its recap). The free tier allows **500 requests per day** for this model; a
-full `--runs 3` eval costs about 300. The renamed wake word still needs the README's manual
-microphone/playback check. The stretch "hybrid demo mode" was not built.
+**The numbers below are from before the ladder changes (2026-10-08 audit fixes); re-run pending.**
+No `GEMINI_API_KEY` was available when the ladder, grading and paced mode changed, so neither
+`--runs 3` nor `--paced --runs 3` has been run on the new code; `eval_results.md` still holds the
+old lock-step report. The harness itself was checked with `--cache --runs 1` in both modes (every
+request failed for lack of a key, as expected) and with a scripted fake LLM.
+
+Latest Gemini eval before the changes (round 2, 2026-10-08, 3 runs of six scripts,
+`gemini-3.5-flash-lite`, thinking `low`, 0 errors): demo_call and demo_call_stt_noise 8/8 planted
+moments in every run; control and adversarial clean calls ≤1 private nudge and 0 spoken in every
+run; live_regressions and summon_checks pass in every run. That round graded summons and spoken
+lines by state only, and counted d23 ("recap at most") as a pass on "none". See `eval_results.md`
+and DECISIONS.md's "Tuning log". A Playwright run against real Gemini passed 20/20 browser checks
+(live card buttons, summon, a full demo simulation and its recap). The free tier allows **500
+requests per day** for this model; a full `--runs 3` eval costs about 300 per mode. The renamed
+wake word still needs the README's manual microphone/playback check. The stretch "hybrid demo
+mode" was not built.
 
 ## Gotchas
 
@@ -148,13 +166,19 @@ microphone/playback check. The stretch "hybrid demo mode" was not built.
   analyses are failing); `Room.analyzed_ok` advances only on success or skip and feeds
   `should_analyze()`, so a parent turn whose analysis failed is re-analyzed with the next turn.
 - **`created_at_turn`** is the newest turn when the card appeared, possibly one the analyzer hadn't
-  seen. **`ladder_start_turn`** starts equal to it and is what the ladder counts from (counselor
-  turns for "due", human turns for "stale"); "I'll clarify" moves it to the newest turn and sets
-  `grace_turns`, so the flag is due after `ESCALATE_AFTER_COUNSELOR_TURNS + grace_turns` counselor
-  turns. The "not due yet" case logs nothing. The observer's flag details show "card shown after
-  tN", plus "counting from tM" once the two differ.
+  seen. **`ladder_start_turn`** starts equal to it, and **`ladder_start_ms`** is the same moment
+  on the clock; "I'll clarify" moves both to now and sets `grace_turns`. Only counselor turns after
+  `ladder_start_turn` that started at or after `ladder_start_ms` count: the flag is due after
+  `ESCALATE_AFTER_COUNSELOR_TURNS + grace_turns` of them, and stale after more than
+  `STALE_AFTER_TURNS` human turns following the first of them (not following the card). The "not
+  due yet" case logs nothing. The observer's flag details show "card shown after tN", plus
+  "counting from tM" once the two differ.
+- **Turn times come from the browser** (`started_at` = push-to-talk press or first keystroke) and
+  `ladder_start_ms` from the server, so the in-progress rule assumes one clock: fine on one
+  machine; across machines it needs synced clocks. Tests stamp turns via `helpers.add_turn` (1000
+  ms apart) and pass `now(state)`; the smoke tests' `typed()` stamps with the server clock.
 - **`dismissed` is not `dropped`:** a dismissed flag still blocks its `issue_key`
-  (`_active_flag_with_key`), is still listed for the analyzer (`state=dismissed`), and is still
+  (`_active_flag_with_key`; a `resolved` one does not, so a relapse can be flagged again), is still listed for the analyzer (`state=dismissed`), and is still
   sent to the counselor. It is left out of the recap's open issues, but an unanswered parent
   question is listed from `parent_questions`, so it reaches the recap even if its card was
   dismissed.
@@ -219,15 +243,16 @@ raw output under "data"; the same entries are in `logs/<room>-<time>.jsonl`, whi
 | `due, deferred: newer turns not analyzed yet` | a turn arrived during the LLM call | `policy._run_ladder` |
 | `due, waiting: cooldown Ns left` | 20 s cooldown since the last interjection | `policy._run_ladder` |
 | `due, waiting: one interjection at a time` | several flags were due at once; the oldest was queued, the rest wait (and may go stale) | `policy._run_ladder` |
-| `→ recap: stale: …` | too many turns passed before it could speak | `policy._run_ladder` |
+| `→ recap: stale: N turns since tM, the counselor's first chance; …` | more than `STALE_AFTER_TURNS` human turns after the counselor's first counting turn | `policy._run_ladder` |
 | `→ dismissed: counselor: not an issue` | dismissed by the counselor ("Not an issue"); never spoken, and the issue is not raised again | `policy.counselor_action` |
 | `counselor will clarify; waiting N counselor turn(s) before speaking` | the counselor clicked "I'll clarify": the count restarted at that turn, with one extra counselor turn | `policy.counselor_action` |
 | `ignored counselor action …` / `ignored … only the counselor can act on a card` | a late or invalid card click; nothing changed | `policy.counselor_action` / `rooms.flag_action` |
 | `analysis through … failed …` | LLM error; the ladder didn't run | `rooms._analysis_loop` |
-| `withdrew queued line …` | a human turn arrived before the pause, or the counselor clicked a card button first | `rooms.add_turn` / `rooms.flag_action` |
+| `withdrew queued line for fN: tM arrived first; re-deciding` / `…: the counselor answered the card first` | a human turn arrived before the pause, or the counselor clicked a card button first; the flag stays nudged | `rooms.add_turn` / `rooms.flag_action` |
+| `tN withdrew the question from tM` | the parent took the question back or answered it themselves; no unanswered-question card (an open one → resolved) | `policy._apply_questions` |
 | `skipped line for …` | the flag changed state while queued | `rooms._speaker_loop` |
 | `no tab reported playback …` | it spoke, but no tab played or acked the audio | `rooms._speak` |
-| (no ladder line after an analysis) | not due yet: too few counselor turns after "card shown after tN" (or after "counting from tM" once the counselor clicked "I'll clarify") | `policy._run_ladder` |
+| (no ladder line after an analysis) | not due yet: too few counselor turns after "card shown after tN" (or after "counting from tM" once the counselor clicked "I'll clarify"), or the counselor turn was already in progress when the card appeared | `policy._run_ladder` |
 
 Also check the "Speech pending" chip: a line stuck in the queue usually means someone is still
 holding push-to-talk (the observer doesn't show who).

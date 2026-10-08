@@ -1,5 +1,7 @@
 # Eval results
 
+> **Before the ladder changes; re-run pending.** This is round 2's lock-step report (2026-10-08), from before the audit fixes to the ladder, the stricter grading and the paced mode (see DECISIONS.md's tuning log). The next `python -m eval.run` run replaces it with the new format, and `--paced` adds the paced half.
+
 2026-10-08 09:45 · model `gemini-3.5-flash-lite` · thinking `low` · cache off · 3 run(s) per script
 
 | Script | Result |
