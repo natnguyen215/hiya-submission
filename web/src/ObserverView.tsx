@@ -14,6 +14,7 @@ const SCRIPTS = [
   "demo_call_stt_noise",
   "adversarial_clean",
   "live_regressions",
+  "live_patterns",
   "summon_checks",
 ];
 

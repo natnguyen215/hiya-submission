@@ -24,6 +24,7 @@ SCRIPTS = [
     "control_call",  # a clean call
     "adversarial_clean",  # a clean call full of near misses (restatements, explained jargon)
     "live_regressions",  # real failures from live testing
+    "live_patterns",  # timing patterns of a live call: relapses, split replies, back-to-back misreads
     "summon_checks",  # questions to Beacon, inside and outside the documents
 ]
 # Calls with nothing planted: the target is no spoken interjection and at most one private nudge.
