@@ -40,7 +40,9 @@ be generated."
 1. Open the counselor and parent URLs in two Chrome windows side by side (and the observer in a
    third if you like). Chrome asks for the microphone the first time you push to talk, not when
    the page opens; allow it once and it is remembered for the site.
-2. In the counselor window, click **Start call**. Beacon introduces itself.
+2. In the counselor window, click **Start call**. Beacon introduces itself. Start every test from
+   a clean call (**End call**, then **Start call**): leftover test chatter ("testing, testing")
+   stays in the transcript the analyzer reads.
 3. In the window of whoever is speaking, hold **Hold to talk** (or hold the spacebar), say the
    line, release. You can also type a line instead; typing works without a microphone. Click
    once in each window first: Chrome only lets a tab play speech after you've interacted with it.
@@ -51,6 +53,12 @@ be generated."
 5. Say "Beacon, what's a Parent PLUS loan?" as the parent. Summons work best starting with a
    question word ("Beacon, what...", "Beacon, how...", "Beacon, can you...").
 6. Click **End call** to get the Family Recap.
+
+**Playing both roles yourself?** The pause before a turn is measured from the end of the previous
+turn to the next push-to-talk press, so switching windows shows up as a long pause on almost
+every turn, and Beacon reads long pauses as hesitation (possible unexplained jargon). For a
+one-person live demo, put `NOTABLE_GAP_MS=6000` in `.env` and restart the server; set it back to
+the default 2000 (or remove the line) for simulations, whose planted 3-second pause relies on it.
 
 Only the counselor window plays Beacon's voice by default (the "Play Beacon audio here"
 toggle, remembered per role in this browser), so one laptop doesn't play it twice.
@@ -189,6 +197,8 @@ collected later as labeled examples for tuning the analyzer.
 - Prototype: one process, in-memory rooms, no authentication, no persistence beyond log files.
 - Chrome only (Web Speech API). Push-to-talk turns, not continuous listening or diarization.
 - Response timing (`gap_ms`) uses each tab's clock; fine on one machine, skewed across machines.
+  One person playing both roles adds window-switching time to every pause (see "Playing both
+  roles yourself?" above).
 - The analyzer can miss things or misjudge severity; the design makes misses cheap (the recap
   catches them) and false interruptions rare (evidence gate, nudge first, cooldown).
 - The free-tier rate limit caps how fast analyses can run; calls are spaced 4 s apart.

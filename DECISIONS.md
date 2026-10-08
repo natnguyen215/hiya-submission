@@ -198,6 +198,13 @@ defaults are logged under "Tuned defaults".
   silent run can push a second interjection into the 20 s cooldown and then to the recap. Runs
   with audio, live calls, and the eval (virtual clock based on words spoken) keep real
   conversational timing. Rejected: a turn-based cooldown (the brief specifies seconds).
+- **Known limitation: one person playing both roles fakes hesitation.** `gap_ms` runs from the
+  end of the previous turn to the next push-to-talk press, so in a solo live demo the time spent
+  switching windows reads as a "LONG PAUSE" on nearly every turn and can produce false
+  `UNEXPLAINED_JARGON` flags. Mitigation, documented in the README: `NOTABLE_GAP_MS=6000` in
+  `.env` for solo live demos, the default 2000 for simulations (the planted 3-second pause needs
+  it). Rejected: measuring from the first recognized word or detecting window focus; a real call
+  has two people and doesn't have this problem, so it isn't worth code.
 - **`sim_turn` carries the script's `gap_ms`.** Real elapsed time in a simulation includes waiting
   for analysis, which would fake hesitations everywhere. Only the observer may submit scripted
   turns for another persona. A simulation timeout raises an error instead of silently advancing.
