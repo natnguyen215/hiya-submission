@@ -9,6 +9,7 @@ a moment should reach its expected outcome in every run, not just once."""
 import argparse
 import asyncio
 import json
+import re
 import statistics
 import sys
 from datetime import datetime
@@ -28,8 +29,15 @@ SCRIPTS = [
 # Calls with nothing planted: the target is no spoken interjection and at most one private nudge.
 CLEAN_SCRIPTS = {"control_call", "adversarial_clean"}
 RESULTS_FILE = config.ROOT / "eval_results.md"
+# The free tier's daily request quota (500 for gemini-3.5-flash-lite in October 2026) answers 429
+# with "retry in 15h...". Waiting won't help, so the eval stops and reports the runs it finished.
+DAILY_QUOTA = re.compile(r"retry in \d+h")
 MS_PER_WORD = 400  # ~150 words a minute; advances the virtual clock so cooldowns behave like a call
 START_MS = 1_000_000_000
+
+
+class QuotaExhausted(Exception):
+    pass
 
 
 class Call:
@@ -61,6 +69,11 @@ class Call:
         self.state.turns.append(turn)
         return turn
 
+    def error(self, message: str) -> None:
+        self.errors.append(message)
+        if DAILY_QUOTA.search(message):  # every later request would fail too
+            raise QuotaExhausted(message)
+
     def speak(self, text: str, flag_id: str | None = None) -> None:
         """Beacon speaks immediately (no other speaker to wait for in a text-only replay)."""
         turn = self.add("beacon", text, config.PAUSE_BEFORE_SPEAK_MS, "beacon")
@@ -90,7 +103,7 @@ async def run_script(llm: GeminiLLM, name: str) -> tuple[list[dict], Call]:
                 call.summons[turn.id] = answer
                 call.speak(answer.answer)
             except Exception as exc:
-                call.errors.append(f"summon {turn.id}: {exc}")
+                call.error(f"{name} summon {turn.id}: {exc}")
             call.summon_latencies += llm.latencies_ms[timed_before:]
         if not policy.should_analyze(call.state, call.analyzed_ok):
             call.analyzed_ok = len(call.state.turns)
@@ -99,7 +112,7 @@ async def run_script(llm: GeminiLLM, name: str) -> tuple[list[dict], Call]:
         result = await analyzer.analyze(llm, call.state)
         call.latencies += llm.latencies_ms[timed_before:]
         if result.error:
-            call.errors.append(f"analysis {turn.id}: {result.error}")
+            call.error(f"{name} analysis {turn.id}: {result.error}")
             continue
         call.analyzed_ok = result.turn_count
         call.record(policy.after_analysis(call.state, result.output, result.turn_count, call.clock))
@@ -261,12 +274,23 @@ async def main() -> None:
         sys.exit("GEMINI_API_KEY is not set. Add it to .env (see .env.example), or pass --cache to replay cached responses.")
     llm = GeminiLLM(cache=args.cache)
     results: dict[str, list[tuple[list[dict], Call]]] = {}
-    for name in args.script or SCRIPTS:
-        results[name] = []
-        for run in range(1, args.runs + 1):
-            print(f"{name}, run {run} of {args.runs}", flush=True)
-            results[name].append(await run_script(llm, name))
-    RESULTS_FILE.write_text(report(results, llm, args.cache), encoding="utf-8")
+    stopped = ""
+    try:
+        for name in args.script or SCRIPTS:
+            for run in range(1, args.runs + 1):
+                print(f"{name}, run {run} of {args.runs}", flush=True)
+                outcome = await run_script(llm, name)
+                results.setdefault(name, []).append(outcome)
+    except QuotaExhausted as exc:
+        stopped = f"> **Stopped early: the daily LLM quota ran out during {name}, run {run}.** {exc}"
+        print(stopped)
+    if not results:
+        sys.exit("No run finished, so there is nothing to report.")
+    text = report(results, llm, args.cache)
+    if stopped:  # right under the title line, so nobody mistakes the partial report for a full one
+        title, rest = text.split("\n", 1)
+        text = f"{title}\n\n{stopped}\n{rest}"
+    RESULTS_FILE.write_text(text, encoding="utf-8")
     print(f"Wrote {RESULTS_FILE.name}")
 
 

@@ -38,8 +38,12 @@ defaults are logged under "Tuned defaults".
   projects. `low` thinking trades a little latency for better judgment on severity and
   resolution, which is where the analyzer is most likely to be wrong. Both are env overrides.
   Rejected: `gemini-3.6-flash` (default `medium` thinking, slower) as the default; it is the
-  documented fallback with a separate quota bucket. Free-tier RPM/RPD could not be verified (Google
-  only shows them in AI Studio now).
+  documented fallback with a separate quota bucket. Free-tier limits, measured on 2026-10-08: the
+  429 response names the quota, and for this model it is **500 requests per day** per project
+  (third-party pages said about 1,500), resetting at midnight Pacific. A simulated demo call costs
+  about 35 requests (one analysis per parent turn and per counselor turn with something open, plus
+  summons and the recap); one run of every eval script costs about 100. Calls are spaced 4 s
+  apart; at that pace a few per-minute 429s still occurred, which the backoff absorbs.
 - **`response_json_schema=Model.model_json_schema()`, then `Model.model_validate_json`.** The
   current SDK sends the JSON schema as-is; pydantic does the validation we rely on. Rejected:
   `response_schema=Model` (the SDK converts it to its own schema format, which mishandles some
@@ -60,6 +64,10 @@ defaults are logged under "Tuned defaults".
 - **Response cache lives in `llm.py`, keyed by model + thinking level + schema + prompt.** Only
   the eval turns it on, and only valid responses are cached, so "retry once on invalid output"
   really asks again. Rejected: caching in the eval (it would need to know about prompts).
+- **The eval stops at a daily-quota 429 and reports the runs it finished.** A per-minute 429 is
+  retried by the backoff, but "retry in 15h" means every later request fails too; continuing
+  would only produce a report of empty outputs at 20 s per failed request. The 429's own text
+  (which names the quota) is kept in the error, so the decision log says which limit was hit.
 - **Eval latency is network time only** (`GeminiLLM.latencies_ms`), not the wait for a rate-limit
   slot, which would otherwise dominate every number.
 
@@ -238,6 +246,21 @@ defaults are logged under "Tuned defaults".
 - **Demo script trimmed to 35 turns (~600 words).** The first draft ran about 4.5 minutes; the
   clear stretch was cut from 6 to 4 turns and several lines shortened. Planted moments unchanged.
 
+- **Eval scripts beyond the demo** (2026-10-08): `demo_call_stt_noise` (the demo as Chrome
+  would transcribe it: lowercase, no question marks, numbers in mixed forms, a few mis-hearings
+  like "pal grant" and "a sea average"), `adversarial_clean` (correct restatements, jargon
+  explained at once, clarifying questions, "mm-hm" after logistics, a long pause before a
+  substantive reply), `live_regressions` (the exact "$31,500" → "so it's covered" exchange after
+  junk mic-check turns, and the broad summons that timed out or ran long), and `summon_checks`
+  (one question per glossary family, award-letter facts, two questions the documents can't
+  answer). `--runs N` repeats each script, because one passing run of an LLM proves little. A
+  test fails if any analyzer prompt example shares a six-word phrase with any script line.
+- **Glossary lines don't cite studentaid.gov individually.** The glossary goes into every prompt;
+  a URL per line costs tokens on every call, invites Beacon to read a link aloud, and would
+  require re-running the whole eval on deadline day. The glossary header names studentaid.gov as
+  the official reference, and the definitions avoid loan limits and interest rates, which change
+  yearly. A line-by-line check against studentaid.gov is still open.
+
 ## Tuned defaults
 
 | Setting | Brief default | Value | Why |
@@ -245,6 +268,31 @@ defaults are logged under "Tuned defaults".
 | UNANSWERED_AFTER_COUNSELOR_TURNS | 2 | 1 | The unanswered-question flag goes through the same ladder as every other flag, so the total wait before Beacon speaks is UNANSWERED_AFTER + ESCALATE_AFTER counselor turns. With 2 + 1 the counselor gets three turns to ignore a direct question, and the planted moment (d) (two non-answers, then the counselor answers) would come out `resolved`, not `spoken`. With 1 + 1: a private nudge after the first non-answer, Beacon asks after the second. Rejected: special-casing this trigger to skip the nudge. |
 
 ## Tuning log
+
+### 2026-10-08: repeated runs and question tracking
+
+- **Round 0** (prompts as of the 2026-10-07 entry below; 3 runs of six scripts, 305 requests, no
+  cache): demo_call 7/8 moments in every run (all 8 in 2/3 runs); demo_call_stt_noise 7/8 (all 8
+  in 1/3); control 0, 0, 1 flags and 0 spoken (pass); adversarial_clean 0 flags and 0 spoken in
+  every run (pass); live_regressions: the "so it's covered" nudge in 2/3 runs and both broad
+  summons answered in 18–23 words in 3/3; summon_checks 8/10 questions in every run. Analyzer
+  latency mean 1,460 ms, max 5,650 ms; summons mean 929 ms, max 1,750 ms. 14 requests failed
+  with per-minute 429s, and they explain every summon_checks miss and the live_regressions miss
+  (a 429 on the analysis of the "so it's covered" turn, so the next analysis already saw the
+  counselor's correction). The remaining misses were real, both in question tracking:
+  - d17 (run 1) and s17 (run 3): the analyzer reported the counselor's next-steps turn ("you'll
+    accept the awards in the student portal") as answering "does the work-study money have to
+    be paid back?", so the unanswered-question flag never escalated.
+  - s17 (run 2): with no question mark in the transcript, the question was opened one analysis
+    late, so the ladder started late and the scripted answer arrived before Beacon could ask.
+- **Round 1 prompt change:** `questions_opened` says speech recognition drops question marks and
+  a question must be reported in the output for its own turn; `questions_answered` says a turn
+  that moves on to another topic does not answer a question, even right after it. New few-shot
+  Example G (a housing-deposit question without "?", then the counselor moves on) shows both;
+  its content is unrelated to the scripts.
+- **Round 1 result:** the free tier's daily quota (500 requests) ran out partway through round 1.
+  See `eval_results.md` for the runs that finished; the full rerun is scheduled after the quota
+  resets.
 
 ### 2026-10-07: stated conclusions and broad summons
 
