@@ -48,6 +48,9 @@ class Flag(BaseModel):
     # The ladder counts turns after this one. It starts as created_at_turn; the counselor's
     # "I'll clarify" moves it to the newest turn and adds grace_turns.
     ladder_start_turn: str
+    # Epoch ms of the same moment. A counselor turn counts only if it started at or after this, so
+    # a turn already in progress when the card appeared doesn't count as "saw it and moved on".
+    ladder_start_ms: int
     grace_turns: int = 0  # extra counselor turns before Beacon may speak
     counselor_action: Literal["will_clarify", "dismissed"] | None = None  # the counselor's last click on the card
     history: list[FlagEvent]

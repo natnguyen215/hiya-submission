@@ -2,6 +2,10 @@
 
 from backend.app.models import AnalyzerOutput, NewFlag, QuestionAnswered, QuestionOpened, RoomState, Turn
 
+# Turns are stamped on a clock: each starts 500 ms after the previous one ended and lasts 500 ms,
+# so they start 1000 ms apart. The ladder compares turn start times with when a card appeared.
+START_MS = 1_000_000_000
+
 
 def make_state(*lines: tuple[str, str]) -> RoomState:
     state = RoomState()
@@ -11,17 +15,23 @@ def make_state(*lines: tuple[str, str]) -> RoomState:
 
 
 def add_turn(state: RoomState, role: str, text: str, gap_ms: int = 500) -> Turn:
+    started = state.turns[-1].ended_at + 500 if state.turns else START_MS
     turn = Turn(
         id=f"t{len(state.turns) + 1}",
         role=role,
         text=text,
-        started_at=0,
-        ended_at=0,
+        started_at=started,
+        ended_at=started + 500,
         gap_ms=gap_ms,
         source="typed",
     )
     state.turns.append(turn)
     return turn
+
+
+def now(state: RoomState) -> int:
+    """The clock just after the newest turn ended: when an analysis of it would finish."""
+    return state.turns[-1].ended_at
 
 
 def new_flag(turn_ids, quotes, key="aid_package_includes_loans", severity="interrupt", trigger="MISREAD_TERM") -> NewFlag:

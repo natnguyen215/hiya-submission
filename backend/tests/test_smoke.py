@@ -57,6 +57,13 @@ def receive_until(ws, message_type, where=lambda message: True):
             return message, seen
 
 
+def typed(text):
+    """A typed turn, stamped like the browser does: started at the first keystroke (just now). The
+    ladder only counts a counselor turn that started after the card appeared."""
+    now = rooms.now_ms()
+    return {"type": "turn", "text": text, "started_at": now, "ended_at": now, "source": "typed"}
+
+
 def start_call(counselor, everyone):
     counselor.send_json({"type": "start_call", "simulated": False})
     for ws in everyone:
@@ -70,28 +77,24 @@ def test_turns_broadcast_cards_go_to_counselor_and_observer_and_escalation_speak
     everyone = (counselor, parent, observer)
     start_call(counselor, everyone)
 
-    counselor.send_json({"type": "turn", "text": "Daniel's total aid package is $31,500.", "started_at": 1, "ended_at": 2, "source": "typed"})
+    counselor.send_json(typed("Daniel's total aid package is $31,500."))
     for ws in everyone:
         added, _ = receive_until(ws, "turn_added")
         assert added["turn"]["role"] == "counselor"
 
-    parent.send_json({"type": "turn", "text": "Oh, thank goodness, so it's covered.", "started_at": 3, "ended_at": 4, "source": "typed"})
+    parent.send_json(typed("Oh, thank goodness, so it's covered."))
     card, _ = receive_until(counselor, "flag_card")
     assert card["flag"]["state"] == "nudged"
     receive_until(observer, "flag_card")
 
     # The counselor moves on without clarifying, so Beacon asks at the next pause.
-    counselor.send_json({"type": "turn", "text": "Next, housing is $16,500.", "started_at": 5, "ended_at": 6, "source": "typed"})
+    counselor.send_json(typed("Next, housing is $16,500."))
     say, _ = receive_until(observer, "beacon_say")
     assert say["text"] == "Quick check for Maria: how much of that is loans?"
     _, parent_messages = receive_until(parent, "beacon_say")
     assert "flag_card" not in [m["type"] for m in parent_messages]
     updated, _ = receive_until(counselor, "flag_updated")
     assert updated["flag"]["state"] == "spoken"
-
-
-def typed(text):
-    return {"type": "turn", "text": text, "started_at": 1, "ended_at": 2, "source": "typed"}
 
 
 def open_card(counselor, parent, observer):
@@ -177,12 +180,12 @@ def test_summon_skips_the_cooldown(connect):
     start_call(counselor, (counselor, parent))
     rooms.get_room("summon").state.last_spoken_at = rooms.now_ms()  # cooldown is active
 
-    parent.send_json({"type": "turn", "text": "Beacon, what's a Parent PLUS loan?", "started_at": 1, "ended_at": 2, "source": "typed"})
+    parent.send_json(typed("Beacon, what's a Parent PLUS loan?"))
     say, _ = receive_until(parent, "beacon_say")
     assert "Parent PLUS" in say["text"]
 
 
 def test_turns_are_rejected_before_the_call_starts(connect):
     parent = connect("early", "parent")
-    parent.send_json({"type": "turn", "text": "Hello?", "started_at": 1, "ended_at": 2, "source": "typed"})
+    parent.send_json(typed("Hello?"))
     assert parent.receive_json() == {"type": "error", "message": "Start the call first."}

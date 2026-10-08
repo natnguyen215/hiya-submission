@@ -114,9 +114,11 @@ def _create_flag(state: RoomState, fields: dict, flag_state: FlagState, reason: 
         state=flag_state,
         # The card appears now, after every turn so far, including any that arrived during the LLM
         # call. The ladder counts from here, so a counselor turn spoken before the card existed
-        # never counts as "saw the card and didn't clarify".
+        # never counts as "saw the card and didn't clarify". ladder_start_ms does the same for a
+        # turn that was already in progress (push-to-talk held) when the card appeared.
         created_at_turn=state.turns[-1].id,
         ladder_start_turn=state.turns[-1].id,
+        ladder_start_ms=now_ms,
         history=[FlagEvent(state=flag_state, reason=reason, turn_id=turn_id)],
         **fields,
     )
@@ -265,20 +267,33 @@ def _turns_before_speaking(flag: Flag) -> int:
     return config.ESCALATE_AFTER_COUNSELOR_TURNS + flag.grace_turns
 
 
+def _counselor_turns_since_card(flag: Flag, seen: list[Turn]) -> list[Turn]:
+    """Counselor turns that had a chance to act on the card: after ladder_start_turn in the
+    transcript, and started once the card was showing (or after "I'll clarify"). A turn already in
+    progress when the card appeared was not a decision to move on."""
+    ids = [t.id for t in seen]
+    if flag.ladder_start_turn not in ids:
+        return []
+    later = seen[ids.index(flag.ladder_start_turn) + 1 :]
+    return [t for t in later if t.role == "counselor" and t.started_at >= flag.ladder_start_ms]
+
+
 def _run_ladder(state: RoomState, seen: list[Turn], unseen_human_turns: bool, now_ms: int) -> list[Action]:
     actions: list[Action] = []
     latest = seen[-1].id
     due: list[Flag] = []
     for flag in [f for f in state.flags if f.state == "nudged"]:
-        # Both counts start at ladder_start_turn: when the card appeared, or the counselor's "I'll clarify".
-        counselor_turns = _turns_after(seen, flag.ladder_start_turn, ("counselor",))
-        if counselor_turns < _turns_before_speaking(flag):
-            continue
-        human_turns = _turns_after(seen, flag.ladder_start_turn, ("counselor", "parent"))
+        counselor_turns = _counselor_turns_since_card(flag, seen)
+        if not counselor_turns:
+            continue  # the counselor hasn't had a turn since the card: neither due nor stale
+        # Staleness counts from the counselor's first chance, not from the card: a parent who
+        # splits a reply over several push-to-talk presses must not use up the counselor's turns.
+        first_chance = counselor_turns[0].id
+        human_turns = _turns_after(seen, first_chance, ("counselor", "parent"))
         if human_turns > config.STALE_AFTER_TURNS:
-            reason = f"stale: {human_turns} turns since {flag.ladder_start_turn}, too late to raise aloud"
+            reason = f"stale: {human_turns} turns since {first_chance}, the counselor's first chance; too late to raise aloud"
             actions += _transition(flag, "recap", reason, latest, now_ms)
-        else:
+        elif len(counselor_turns) >= _turns_before_speaking(flag):
             due.append(flag)
     if not due:
         return actions
@@ -369,6 +384,7 @@ def counselor_action(state: RoomState, flag_id: str, action: CardAction, latest_
         return ignored("the counselor already said they will clarify")
     flag.counselor_action = "will_clarify"
     flag.ladder_start_turn = latest_turn_id
+    flag.ladder_start_ms = now_ms
     flag.grace_turns = config.CLARIFY_GRACE_COUNSELOR_TURNS
     flag.history.append(FlagEvent(state="nudged", reason="counselor: will clarify", turn_id=latest_turn_id))
     message = f"{flag.id} counselor will clarify; waiting {_turns_before_speaking(flag)} counselor turn(s) before speaking"
