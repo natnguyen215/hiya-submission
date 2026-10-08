@@ -1,30 +1,41 @@
 # Demo video run-of-show (2:45)
 
+## Before you record
+
 **Pre-flight on the recording laptop (10 minutes):**
 
-1. Get the latest code: merge the PR into `main` and pull, or check out its branch.
-2. `.env` is not in git: copy `.env.example` to `.env` and paste a Gemini key.
-3. `python tasks.py install`, `python tasks.py build`, `python tasks.py run`, then open the three
-   URLs from the README in Chrome.
-4. Say "Beacon, what's a Parent PLUS loan?" once in the parent window, holding push-to-talk: it
-   checks the microphone, the wake word and audio in one go (the README's manual checklist
-   has the rest).
-5. Rehearse the simulation once with "Text only" unticked; then **Reset** before the real take.
+1. Get the latest code. Merge the PR into `main` and pull, or check out its branch.
+2. Copy `.env.example` to `.env`. (`.env` is not in git.)
+3. In `.env`, set `GEMINI_API_KEY`.
+4. Run `python tasks.py install`, then `python tasks.py build`, then `python tasks.py run`.
+5. Open the three pages from the README in Chrome.
+6. In the parent window, hold push-to-talk and say "Beacon, what's a Parent PLUS loan?". This
+   checks the microphone, the wake word and the audio together. The README's manual checklist
+   has the other checks.
 
-**Quota before recording:** the free tier gives 500 Gemini requests a day (reset at midnight
-Pacific). A take of the simulated call costs about 35, the live beat a handful, so a rehearsal
-plus several takes fit easily, but don't run the full eval (about 100 requests per run) on
-recording day. Keep `NOTABLE_GAP_MS` at its default (2000) for the simulation: moment (c) relies
-on its 3-second pause being marked.
+**Quota:** the free tier gives 500 Gemini requests per day. The quota resets at midnight Pacific
+time. One take of the simulated call uses about 35 requests, and the live beat uses about 5. A
+rehearsal and several takes fit in one day. Do not run the full eval on recording day: one run
+uses about 100 requests.
 
-**Setup before recording:** `make run` (or `python tasks.py run`) with a Gemini key in `.env`.
-Chrome window 1: observer (`/observer?room=demo`), left two-thirds of the screen. Chrome window 2:
-counselor (`/call?room=demo&role=counselor`), right third. Click once inside the counselor window
-so its "Click anywhere..." audio notice goes away (in a simulation the observer plays every voice
-anyway). In the observer pick `demo_call`, untick "Text only (no audio)", and click once in the
-observer too. Do one full rehearsal run first to check that every moment lands. The full simulated
-call runs about 5 minutes with audio, so record it once and speed up the stretches between
-highlights (2–4×) in editing.
+**Setup:**
+
+1. Keep `NOTABLE_GAP_MS` at its default (2000). Moment (c) needs its 3-second pause to show as
+   long.
+2. Put the observer (`/observer?room=demo`) in a Chrome window on the left two-thirds of the
+   screen.
+3. Put the counselor (`/call?room=demo&role=counselor`) in a second window on the right third.
+4. Click once in the counselor window, so its "Click anywhere..." notice goes away.
+5. In the observer, select `demo_call`, untick "Text only (no audio)", and click once in the
+   observer.
+6. Do one full rehearsal. Make sure that each moment lands. Then click **Reset**.
+7. Record. With audio, the call runs about 5 minutes. In editing, speed up the parts between
+   the highlights (2–4×).
+
+Beacon's spoken lines come from Gemini, so their words change from take to take. Narrate the
+idea, not the exact words.
+
+## Run of show
 
 | Time | On screen | Narration (suggested) |
 |---|---|---|
@@ -38,18 +49,34 @@ highlights (2–4×) in editing.
 | 2:15–2:40 | The call ends. The Family Recap appears. Hover a reference chip (e.g. L20) to light up its document line. Press **Read aloud** for a few seconds, then show **Download .md**. | "After the call, the family gets a plain-language recap: free money, loans, work-study, what's left to pay, deadlines, and what's still unclear, every number cited. It can be read aloud." |
 | 2:40–2:45 | Back to the two windows. | "Beacon: the question the family won't ask, asked at the right moment." |
 
-**Live beat: counselor controls (about 15 s, recorded separately).** The simulation has no
-clicks, so record this one live and cut it in after moment (a), trimming the sped-up stretches to
-keep 2:45. Reset the room and click **Start call** in the counselor window, with the parent window
-(`/call?room=demo&role=parent`) open beside it. Counselor: "Daniel's total aid package is $31,500."
-Parent: "Oh, thank goodness, so it's covered." When the "so it's covered" card appears, click
-**I'll clarify** (the button becomes "Beacon will wait for you"), then clarify in your own words
-as the counselor, for example "To be clear, $14,000 of that is loans you'd repay." The card turns
-green, "Clarified". Narration: "The counselor stays in control: one click tells Beacon 'I've got
-this,' another says 'that's not an issue.' Every dismissal is logged, so false alarms become
-tuning data."
+## Live beat: counselor controls (about 15 s, recorded separately)
 
-**If something goes wrong on camera:** the observer says why. The status chip at the top shows
-"analyzer unavailable: ..." and the Decision Log has an error entry such as "analysis through t7
-failed after ... ms: LLMError: rate limited (429)", or a flag dropped by the evidence gate. Reset,
-wait a minute for the free-tier quota, and run again.
+The simulation has no clicks, so record this beat live. Cut it in after moment (a), and trim the
+sped-up parts to keep 2:45.
+
+1. Click **Reset**. Then click **Start call** in the counselor window.
+2. Open the parent window (`/call?room=demo&role=parent`) next to it.
+3. As the counselor, say "Daniel's total aid package is $31,500."
+4. As the parent, say "Oh, thank goodness, so it's covered."
+5. When the card appears, click **I'll clarify**. The button changes to "Beacon will wait for
+   you".
+6. As the counselor, clarify in your own words. For example: "To be clear, $14,000 of that is
+   loans you'd repay."
+7. The card turns green and shows "Clarified".
+
+Narration: "The counselor stays in control: one click tells Beacon 'I've got this,' another says
+'that's not an issue.' Every dismissal is logged, so false alarms become tuning data."
+
+## If something goes wrong on camera
+
+The observer shows why:
+
+- The status chip at the top shows "analyzer unavailable: ...".
+- The Decision Log has an error entry, for example "analysis through t7 failed after ... ms:
+  LLMError: rate limited (429)". Or the log shows a card that the evidence gate dropped.
+
+What to do:
+
+1. If the error says "retry in Nh", the daily quota is gone. Wait for the reset, or use another
+   key.
+2. Otherwise, click **Reset**, wait one minute (the per-minute quota), and run the take again.

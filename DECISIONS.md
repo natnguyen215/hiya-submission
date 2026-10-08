@@ -1,7 +1,7 @@
 # Decisions
 
-Each entry: the decision, why, and the main alternative rejected. Changes to the brief's §5.6
-defaults are logged under "Tuned defaults".
+Each entry: the decision, why, and the main alternative rejected. Changes to the defaults in the original
+build plan are logged under "Tuned defaults".
 
 ## Name
 
@@ -23,6 +23,11 @@ defaults are logged under "Tuned defaults".
   into whatever Python is active.
 - **`httpx2` instead of `httpx` in requirements.** Starlette 1.7's TestClient warns that `httpx` is
   deprecated for it. (`httpx` is still installed because `google-genai` uses it.)
+- **The browser check (`eval/browser_check.js`) is not a dependency.** Playwright and its
+  browser are a large download that `tasks.py install` would force on everyone. The check is
+  optional, so its header installs Playwright into an ignored `.pw/` folder. It is the only
+  check of the React views, the card buttons and what each role sees, and its run against Gemini
+  found the re-raised SAP card (see the tuning log).
 - **`pytest-timeout` (60 s).** A WebSocket smoke test that waits for a message that never comes
   would otherwise block forever; with the timeout it fails with a stack trace.
 - **`tasks.py dev` stops Vite with `taskkill /T` on Windows.** `terminate()` only ends the
@@ -213,7 +218,7 @@ defaults are logged under "Tuned defaults".
 - **Text-only simulation compresses time.** The cooldown is in wall-clock seconds, so a very fast
   silent run can push a second interjection into the 20 s cooldown and then to the recap. Runs
   with audio, live calls, and the eval (virtual clock based on words spoken) keep real
-  conversational timing. Rejected: a turn-based cooldown (the brief specifies seconds).
+  conversational timing. Rejected: a turn-based cooldown (the original plan specifies seconds).
 - **Known limitation: one person playing both roles fakes hesitation.** `gap_ms` runs from the
   end of the previous turn to the next push-to-talk press, so in a solo live demo the time spent
   switching windows reads as a "LONG PAUSE" on nearly every turn and can produce false
@@ -271,7 +276,7 @@ defaults are logged under "Tuned defaults".
 
 ## Tuned defaults
 
-| Setting | Brief default | Value | Why |
+| Setting | Planned default | Value | Why |
 |---|---|---|---|
 | UNANSWERED_AFTER_COUNSELOR_TURNS | 2 | 1 | The unanswered-question flag goes through the same ladder as every other flag, so the total wait before Beacon speaks is UNANSWERED_AFTER + ESCALATE_AFTER counselor turns. With 2 + 1 the counselor gets three turns to ignore a direct question, and the planted moment (d) (two non-answers, then the counselor answers) would come out `resolved`, not `spoken`. With 1 + 1: a private nudge after the first non-answer, Beacon asks after the second. Rejected: special-casing this trigger to skip the nudge. |
 

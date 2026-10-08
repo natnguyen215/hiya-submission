@@ -14,8 +14,8 @@ but means paperwork is due. Families say "okay" and hang up believing something 
 This isn't hypothetical. A 2022 GAO review estimated 91% of colleges leave out or understate the
 net price in aid offers, often counting loans as if they reduced the cost. A uAspire/New America
 review of 515 award letters found about 70% lumped grants, loans and work-study together without
-explaining the difference, and nearly 15% listed Parent PLUS loans as an "award." The demo's
-planted moments are these documented failures.
+explaining the difference. Nearly 15% listed Parent PLUS loans as an "award." The demo's planted
+moments are these documented failures.
 
 ## Who it's for
 
@@ -24,15 +24,15 @@ Beacon, but its job is the family's understanding, like a hospital patient advoc
 
 ## What it does
 
-When the parent's words show a misunderstanding, or jargon went by unexplained and the reply was a
-hesitant "...okay", Beacon first shows the counselor a private card with a suggested clarification.
-Usually the counselor fixes it and Beacon stays silent. If the counselor moves on, Beacon waits for
-a pause and asks on the family's behalf: "Quick check for Maria: what does 'selected for
-verification' mean for her?" It asks rather than answers, so the expert stays in charge. Two
-buttons on the card let the counselor say "I'll clarify" or "Not an issue"; dismissals are logged
-as tuning data. The family can also ask Beacon by name. After the call comes a plain-language,
-read-aloud Family Recap (free money vs. loans vs. work-study, what's left to pay, deadlines, open
-questions), every number checked against its citation.
+When the parent's words show a misunderstanding, Beacon first shows the counselor a private card
+with a suggested clarification. It does the same when jargon goes unexplained and the reply is a
+hesitant "...okay". Usually the counselor fixes it and Beacon stays silent. If the counselor moves
+on, Beacon waits for a pause and asks on the family's behalf: "Quick check for Maria: what does
+'selected for verification' mean for her?" It asks rather than answers, so the expert stays in
+charge. Two buttons on the card let the counselor say "I'll clarify" or "Not an issue"; dismissals
+are logged as tuning data. The family can also ask Beacon by name. After the call comes a
+plain-language, read-aloud Family Recap (free money vs. loans vs. work-study, what's left to pay,
+deadlines, open questions), every number checked against its citation.
 
 ## Why voice
 
@@ -46,7 +46,7 @@ questions), every number checked against its citation.
 A React app uses browser speech recognition (push-to-talk) and synthesis, with a FastAPI WebSocket
 server. The core design choice: Gemini (3.5 Flash-Lite, structured JSON) only perceives:
 misunderstandings with exact quotes, resolutions, answered questions. Plain Python decides: it
-verifies every quote, ignores duplicates, sends minor issues to the recap, and escalates from
+verifies every quote, ignores duplicates and sends minor issues to the recap. It escalates from
 private nudge to spoken question only when the counselor doesn't clarify, with a cooldown and
 staleness rule. An observer dashboard logs every decision. An offline eval replays scripted calls
 (planted misunderstandings, clean controls, speech-recognition noise) repeatedly, checking each
@@ -59,6 +59,6 @@ real counselors and families to tune when Beacon speaks.
 
 ## AI tools used
 
-_[To fill in, at most 60 words (the rest of this page is 490 words; the limit is 550): which coding agents you used, for what
+_[To fill in, at most 55 words (the rest of this page, headings included, is 494 words; the limit is 550): which coding agents you used, for what
 (for example scaffolding, tests, demo scripts, review), and what you designed, checked or
 rewrote yourself.]_

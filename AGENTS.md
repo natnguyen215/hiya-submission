@@ -11,7 +11,7 @@ before changing intentional behavior.
 - `backend/app/rooms.py`: runtime state, broadcasting, analysis, and speech queues.
 - `backend/prompts/*.txt`: LLM prompts; keep prompts out of Python strings.
 - `web/src/`: React and TypeScript call, observer, and recap views.
-- `data/`: fictional grounding documents and demo/control call scripts.
+- `data/`: fictional grounding documents and the eval's call scripts.
 - `backend/tests/`: network-free pytest tests using `FakeLLM`.
 - `eval/run.py`: real Gemini evaluation, writing `eval_results.md`.
 
@@ -30,9 +30,10 @@ Run commands from the project root with Python 3.11+ and Node 20.19+ (20.x) or
 - `python tasks.py build`: checks TypeScript and builds the frontend.
 - `python tasks.py dev`: backend on port 8000 and Vite on port 5173.
 - `python tasks.py run`: serves backend and built frontend on port 8000; build first.
-- `python tasks.py eval`: evaluates both scripts against Gemini.
+- `python tasks.py eval`: evaluates every script in `eval/run.py`'s `SCRIPTS` against Gemini (about 100 requests; the free tier allows 500 a day).
 - `python tasks.py eval --cache`: stores/reuses valid responses in `.cache/`.
-- `python tasks.py eval --script demo_call`: evaluates one script.
+- `python tasks.py eval --script demo_call --runs 3`: one script, three times.
+- `eval/browser_check.js`: optional Playwright check of the UI against a running server (see its header).
 
 The task runner uses `.venv` automatically; activation is optional. On Windows,
 set `PYTHONIOENCODING=utf-8` when printing Unicode decision logs. Configure

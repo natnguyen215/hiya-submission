@@ -20,7 +20,7 @@ DECISIONS.md, and LLM prompts in `backend/prompts/*.txt`, never in Python string
    queue, timing). Start at `add_turn()`.
 4. `backend/app/analyzer.py` + `backend/prompts/analyzer.txt`: what the LLM is asked to perceive.
 5. `DECISIONS.md`: why things are the way they are, including deliberate deviations from the
-   original brief and the tuning log. Check it before "fixing" something that looks odd.
+   original build plan and the tuning log. Check it before "fixing" something that looks odd.
 
 ## The design rule: the LLM perceives, Python decides
 
@@ -107,6 +107,7 @@ its audio) acks instantly.
 | `backend/app/main.py` | FastAPI: `/api/documents`, `/api/scripts/{name}`, `/ws`, serves `web/dist` |
 | `backend/prompts/` | `analyzer.txt`, `summon.txt`, `recap.txt` |
 | `backend/tests/` | `test_policy.py` (most behavior, including the counselor's card buttons; `helpers.py` builds states and fake outputs), `test_smoke.py` (three WebSocket clients + FakeLLM), `test_rooms.py` (turn-taking and speech-queue regressions), `test_analyzer.py` (prompt rendering; prompt examples must not reuse script lines), `test_wakeword.py`, `test_scripts.py` (every script well-formed and registered in the eval) |
+| `eval/browser_check.js` | optional Playwright check of the UI against a running server; Playwright is installed outside the repo (header says how) |
 | `eval/run.py` | offline eval over the scripts in its `SCRIPTS` list (add a new script there and to `SCRIPTS` in `ObserverView.tsx`; `CLEAN_SCRIPTS` get the "≤1 flag, 0 spoken" target), text only, virtual clock, no recap, `--runs N` repeats each script → `eval_results.md` |
 | `data/scripts/` | `demo_call.json` (planted moments, each with an `expect`), `demo_call_stt_noise.json` (the same call as Chrome might transcribe it), `control_call.json` and `adversarial_clean.json` (clean calls), `live_regressions.json` (failures seen in live testing), `summon_checks.json` (questions to Beacon; `expect.outcome` "declined" = not in the documents) |
 | `web/src/` | React: `useRoom.ts` (WebSocket hook), `CallView.tsx`, `ObserverView.tsx`, `Recap.tsx`, `components.tsx`, `speech.ts` (push-to-talk + TTS), `simulate.ts` (script runner) |
@@ -126,8 +127,8 @@ its audio) acks instantly.
 - The eval needs `GEMINI_API_KEY` in `.env` (copy `.env.example`). `--cache` replays responses from
   `.cache/` (not shipped); any request that fails puts a warning at the top of `eval_results.md`.
 - On Windows, set `PYTHONIOENCODING=utf-8` before printing decision-log text (it contains "→").
-- Tests: all pass, no network, about 2 s. The frontend has no automated tests; it was checked by
-  hand in Chromium during the build.
+- Tests: all pass, no network, about 2 s. The frontend has no unit tests; `eval/browser_check.js`
+  drives it in Chromium (24/24 checks against a fake LLM, 20/20 against Gemini on 2026-10-08).
 
 ## Status
 
