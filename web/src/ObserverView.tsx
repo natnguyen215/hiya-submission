@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { FlagCard, StatusBar, Transcript, useScrollToEnd } from "./components";
 import { FamilyRecap } from "./Recap";
-import { runSimulation } from "./simulate";
+import { readingTimeMs, runSimulation } from "./simulate";
 import { speak, stopSpeaking, useBeaconAudioSetting } from "./speech";
 import type { DocLine, LogEntry, ScriptTurn } from "./types";
 import { useRoom } from "./useRoom";
 
-// The same scripts as SCRIPTS in eval/run.py. The demo video uses demo_call.
+// The same scripts as SCRIPTS in eval/run.py. The demo video uses demo_short.
 const SCRIPTS = [
+  "demo_short",
   "demo_call",
   "control_call",
   "demo_call_stt_noise",
@@ -42,9 +43,10 @@ export function ObserverView({ room }: { room: string }) {
     onBeaconSay(say) {
       const done = () => send({ type: "beacon_playback_done", turn_id: say.turn_id });
       // During a simulation, this tab plays all voices (the call tabs stay silent). In text-only
-      // mode, nobody must hear it. So report "done" at once, and the script continues.
+      // mode, nobody must hear it. So report "done" after the time to read the line, and the
+      // script continues. (The server's fallback wait is longer, so it does not end the line first.)
       // (The checkbox is locked during a run, so `textOnly` is the setting of the running script.)
-      if (simulation.current && textOnly) done();
+      if (simulation.current && textOnly) setTimeout(done, readingTimeMs(say.text));
       else if (simulation.current || playAudio) speak(say.text, "beacon").then(done);
     },
   });

@@ -4,6 +4,15 @@ import { speak } from "./speech";
 import type { ClientMessage, RoomState, RoomStatus, ScriptTurn, Settings } from "./types";
 
 const POLL_MS = 100;
+// A text-only run waits about as long as a person needs to read each line. Without this wait,
+// the lines appear as fast as the analysis runs, and the viewer cannot follow the call.
+const READ_MS_BASE = 2000;
+const READ_MS_PER_WORD = 350;
+
+/** The time to read a line on screen. A text-only run uses it instead of the spoken audio. */
+export function readingTimeMs(text: string): number {
+  return READ_MS_BASE + READ_MS_PER_WORD * text.split(/\s+/).filter(Boolean).length;
+}
 
 interface SimulationOptions {
   send: (message: ClientMessage) => void;
@@ -83,8 +92,9 @@ export async function runSimulation(script: ScriptTurn[], options: SimulationOpt
 
     step("pausing");
     await sleep(line.pause_before_ms, signal);
-    if (!textOnly) {
-      step(`${line.role} speaking`);
+    step(`${line.role} speaking`);
+    if (textOnly) await sleep(readingTimeMs(line.text), signal);
+    else {
       await speak(line.text, line.role);
       signal.throwIfAborted(); // Stop cancels the speech, so speak() ends early
     }
