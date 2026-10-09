@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FlagCard, StatusBar, Transcript, useScrollToEnd } from "./components";
 import { FamilyRecap } from "./Recap";
-import { readingTimeMs, runSimulation } from "./simulate";
+import { readingTimeMs, runSimulation, SIM_SPEECH_SPEED } from "./simulate";
 import { speak, stopSpeaking, useBeaconAudioSetting } from "./speech";
 import type { DocLine, LogEntry, ScriptTurn } from "./types";
 import { useRoom } from "./useRoom";
@@ -39,7 +39,8 @@ export function ObserverView({ room }: { room: string }) {
       // script continues. (The server's fallback wait is longer, so it does not end the line first.)
       // (The checkbox is locked during a run, so `textOnly` is the setting of the running script.)
       if (simulation.current && textOnly) setTimeout(done, readingTimeMs(say.text));
-      else if (simulation.current || playAudio) speak(say.text, "beacon").then(done);
+      else if (simulation.current) speak(say.text, "beacon", SIM_SPEECH_SPEED).then(done);
+      else if (playAudio) speak(say.text, "beacon").then(done);
     },
   });
 
