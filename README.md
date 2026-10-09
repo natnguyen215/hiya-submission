@@ -39,9 +39,8 @@ One run is less than the 3 runs per script of earlier rounds (see the tuning log
 The eval analyzes each turn before the next turn arrives, and Beacon speaks at once. So it
 measures what Beacon finds and decides. It does not measure live timing (see "Limitations").
 
-Full transcripts and every decision: [`eval_results.md`](eval_results.md). Each tuning step and
-its before-and-after numbers: the "Tuning log" in [`DECISIONS.md`](DECISIONS.md). 64 unit and
-WebSocket tests run without network access.
+Full transcripts and every decision: [`eval_results.md`](eval_results.md). 65 unit and WebSocket
+tests run without network access.
 
 ## Quick start
 
@@ -120,8 +119,8 @@ Untick it to hear Alex, Maria and Beacon in different voices. The observer then 
 voice, and the call windows stay silent.
 
 A text-only run is still faster than speech. A later interjection can then fall inside the
-20-second cooldown and go to the recap instead of being spoken (see DECISIONS.md). Runs with
-audio keep real conversational timing.
+20-second cooldown and go to the recap instead of being spoken. Runs with audio keep real
+conversational timing.
 
 ## Manual test checklist
 
@@ -258,7 +257,6 @@ records are labeled examples for tuning the analyzer later.
 | `web/src/` | React views, WebSocket hook, speech helpers, simulation runner |
 | `eval/run.py` | offline eval → `eval_results.md` |
 | `eval/browser_check.js` | optional browser check of the UI with Playwright |
-| `DECISIONS.md` | why things are the way they are |
 
 ## Limitations
 
