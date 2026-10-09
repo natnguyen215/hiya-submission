@@ -42,7 +42,7 @@ arrives as a `flag_action` message; `policy.counselor_action()` validates and ap
 `rooms.flag_action()` carries out the result.
 
 Two honest caveats. "Resolved" is the LLM's judgment: code only checks the flag is still
-`nudged`, not which turn resolved it. And a few speech mechanics live in `rooms.py`: the speaker
+`nudged` and that some counselor turn follows its evidence, not which turn resolved it. And a few speech mechanics live in `rooms.py`: the speaker
 drops a queued line whose flag is no longer `nudged`, `enqueue_speech()` dedupes by flag id,
 `flag_action()` withdraws a flag's queued line when the counselor clicks a card button, and
 summon answers share the queue but skip the ladder and cooldown and are never withdrawn.
@@ -239,6 +239,7 @@ raw output under "data"; the same entries are in `logs/<room>-<time>.jsonl`, whi
 | Log text | Meaning | Emitted at |
 |---|---|---|
 | `→ resolved: the counselor clarified it` | the LLM judged it resolved | `policy.after_analysis` |
+| `ignored resolution of fN: no counselor turn after its evidence` | the LLM called it resolved, but only the parent has spoken since | `policy.after_analysis` |
 | `ignored [key]: same … moment as fN` | the LLM re-raised a flagged moment under a new key | `policy._add_new_flags` |
 | `due, deferred: newer turns not analyzed yet` | a turn arrived during the LLM call | `policy._run_ladder` |
 | `due, waiting: cooldown Ns left` | 20 s cooldown since the last interjection | `policy._run_ladder` |

@@ -357,8 +357,16 @@ def after_analysis(state: RoomState, out: AnalyzerOutput, turn_count: int, now_m
     actions: list[Action] = []
     for flag_id in out.resolved_flag_ids:
         flag = next((f for f in state.flags if f.id == flag_id), None)
-        if flag and flag.state == "nudged":
-            actions += _transition(flag, "resolved", "the counselor clarified it", latest, now_ms)
+        if not flag or flag.state != "nudged":
+            continue
+        # Only the counselor can clarify, so a counselor turn must follow the evidence. Seen with
+        # Gemini: a flag listed as resolved after the parent's next short press ("Oh,").
+        newest = max((t for t in seen if t.id in flag.evidence_turn_ids), key=seen.index, default=None)
+        if newest is None or not _turns_after(seen, newest.id, ("counselor",)):
+            message = f"ignored resolution of {flag.id}: no counselor turn after its evidence"
+            actions.append(_log(now_ms, "ladder", message, flag.id, latest))
+            continue
+        actions += _transition(flag, "resolved", "the counselor clarified it", latest, now_ms)
     actions += _add_new_flags(state, out, seen, now_ms)
     actions += _apply_questions(state, out, seen, now_ms)
     actions += _raise_unanswered(state, seen, now_ms)

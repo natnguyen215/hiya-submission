@@ -153,6 +153,14 @@ def test_nudge_then_spoken_after_counselor_turns_without_clarifying():
     assert state.last_spoken_at == now(state) + 2000
 
 
+def test_a_resolution_needs_a_counselor_turn_after_the_evidence():
+    state = covered_state()
+    add_turn(state, "parent", "Oh,")
+    actions = policy.after_analysis(state, output(resolved=["f1"]), 3, now(state))
+    assert state.flags[0].state == "nudged"
+    assert "ignored resolution of f1: no counselor turn after its evidence" in log_text(actions)
+
+
 def test_parent_turns_alone_do_not_escalate():
     state = covered_state()
     add_turn(state, "parent", "Daniel will be so happy.")

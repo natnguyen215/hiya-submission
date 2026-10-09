@@ -138,6 +138,12 @@ build plan are logged under "Tuned defaults".
   of its parent turns, logged as "same ... moment as fN". Trade-off: two different misreads of
   the same kind in one parent turn become one card. Rejected: a stronger prompt line alone (the
   model already had one) and fuzzy-matching issue keys (opaque).
+- **A resolution needs a counselor turn after the flag's evidence** (2026-10-09, found by the
+  first eval run of live_patterns). Gemini listed a work-study misread as resolved right after the
+  parent's next short press ("Oh,"), with no counselor turn since, so the flag closed silently.
+  Code now ignores such a resolution and logs it. It still doesn't check *which* turn clarified
+  (that stays the LLM's judgment). Rejected: asking the model to cite the resolving turn (a schema
+  change for a check this simple).
 - **Dropped flags are kept (state `dropped`) so the observer can show why**, but they don't count
   for dedupe, so a later, well-evidenced flag with the same `issue_key` can still be raised.
 - **A resolved flag frees its `issue_key` too** (2026-10-08 audit). A key is blocked only while a
