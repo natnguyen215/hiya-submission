@@ -10,7 +10,7 @@
 //
 // "live": typed turns in the counselor and parent pages: a card, "I'll clarify", "Not an issue",
 //         the button giving up focus, a broad summon, End call and the recap.
-// "sim":  the observer plays each script in SCRIPTS (default demo_call) as text only, then checks
+// "sim":  the observer plays each script in SCRIPTS (default demo_call; only the observer's scripts) as text only, then checks
 //         who saw which cards and the recap in every page.
 const { chromium } = require("playwright");
 

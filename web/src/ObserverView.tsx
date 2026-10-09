@@ -8,17 +8,9 @@ import { speak, stopSpeaking, useBeaconAudioSetting } from "./speech";
 import type { DocLine, LogEntry, ScriptTurn } from "./types";
 import { useRoom } from "./useRoom";
 
-// The same scripts as SCRIPTS in eval/run.py. The demo video uses demo_short.
-const SCRIPTS = [
-  "demo_short",
-  "demo_call",
-  "control_call",
-  "demo_call_stt_noise",
-  "adversarial_clean",
-  "live_regressions",
-  "live_patterns",
-  "summon_checks",
-];
+// The scripts to show in a demo. The demo video uses demo_short. The other scripts in
+// data/scripts are test cases for the eval (eval/run.py), so this list does not show them.
+const SCRIPTS = ["demo_short", "demo_call", "control_call"];
 
 interface Progress {
   text: string;
