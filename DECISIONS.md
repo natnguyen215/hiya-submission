@@ -269,10 +269,16 @@ defaults are logged under "Tuned defaults".
   older one on its way to a tab.
 - **A summon is counted in `speech_pending` before the turn is broadcast**, so the simulation
   runner never sees the summon turn without the pending answer.
-- **Text-only simulation compresses time.** The cooldown is in wall-clock seconds, so a very fast
+- **Text-only simulation compresses time.** It waits on each line for about the time to read it
+  (`readingTimeMs` in `simulate.ts`: 1.5 s plus 0.3 s per word), so a viewer can follow it. That
+  is still faster than speech. The cooldown is in wall-clock seconds, so a fast
   silent run can push a second interjection into the 20 s cooldown and then to the recap. Runs
   with audio, live calls, and the eval (virtual clock based on words spoken) keep real
   conversational timing. Rejected: a turn-based cooldown (the original plan specifies seconds).
+- **`demo_short` for the video** (2026-10-09): `demo_call` has 36 lines, too long to follow in a
+  video. `demo_short` keeps its planted moments, with the same `expect`s, in 18 lines: it drops
+  the correct restatements, the quiet moment and the closing summary. `demo_call` stays in the
+  eval as the full-length call, so its results stay comparable.
 - **Known limitation: one person playing both roles fakes hesitation.** `gap_ms` runs from the
   end of the previous turn to the next push-to-talk press, so in a solo live demo the time spent
   switching windows reads as a "LONG PAUSE" on nearly every turn and can produce false

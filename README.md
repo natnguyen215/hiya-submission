@@ -25,6 +25,7 @@ must be about the moment, the trigger must match). There were 0 errors.
 
 | Script | What it tests | Result |
 |---|---|---|
+| `demo_short` | the demo video: the moments of `demo_call` in 18 lines (no restatements, no quiet moment) | not run yet |
 | `demo_call` | 7 planted moments (misreadings, unexplained jargon, an ignored question, a summon, correct restatements) and 1 moment that must stay quiet | 7/7, and the quiet moment stayed quiet |
 | `demo_call_stt_noise` | the same call as Chrome transcribes it: lowercase, no question marks, mis-heard words | 7/7, quiet moment quiet |
 | `control_call` | a clear call with nothing planted | 0 spoken interjections, 1 private card (resolved on the next analysis) |
@@ -105,20 +106,22 @@ line for simulations: the planted 3-second pause needs the default of 2000.
 ## Run a simulation
 
 1. Open the observer.
-2. Select a script. `demo_call` has the planted misunderstandings. `control_call` is a clear call.
+2. Select a script. `demo_short` (the default) has the planted misunderstandings in 18 lines;
+   `demo_call` is the full-length call. `control_call` is a clear call.
 3. Click **Play**.
 
 The observer sends each scripted line to the server. Before the next line, it waits until the
 analysis is complete and Beacon has finished speaking. Simulations use the same pipeline as live
 calls. Open the counselor window next to the observer to see the cards.
 
-"Text only (no audio)" is ticked by default for a fast, silent run. Untick it to hear Alex, Maria
+"Text only (no audio)" is ticked by default for a silent run. It waits on each line for about the
+time to read it (1.5 s plus 0.3 s per word), Beacon's lines too, so you can follow the call. Untick it to hear Alex, Maria
 and Beacon in different voices. The observer then plays every voice, and the call windows stay
 silent.
 
-A text-only run compresses time. A later interjection can then fall inside the 20-second
-cooldown and go to the recap instead of being spoken (see DECISIONS.md). Runs with audio keep
-real conversational timing.
+A text-only run is still faster than speech. A later interjection can then fall inside the
+20-second cooldown and go to the recap instead of being spoken (see DECISIONS.md). Runs with
+audio keep real conversational timing.
 
 ## Manual test checklist
 

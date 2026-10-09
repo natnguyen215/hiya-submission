@@ -113,7 +113,8 @@ analysis of a parent turn has an effect only at the next turn. By then, the flag
 These tabs send `beacon_playback_done`:
 - A tab with "Play Beacon audio here" on. The default is on only for the counselor. The choice is
   kept per role in localStorage. During a simulated call, the call tabs stay silent.
-- The observer tab that runs a simulation, always. With "Text only", it reports at once.
+- The observer tab that runs a simulation, always. With "Text only", it reports after the time
+  to read the line (`readingTimeMs` in `simulate.ts`), and it waits as long before each script line.
 `speech.speak()` resolves also after an error. So a tab that nobody clicked in (Chrome blocks its
 audio) reports at once.
 
@@ -136,7 +137,7 @@ audio) reports at once.
 | `backend/tests/` | `test_policy.py` (most behavior; `helpers.py` makes states and fake outputs), `test_smoke.py` (three WebSocket clients and a FakeLLM), `test_rooms.py` (push-to-talk and the speech queue), `test_analyzer.py` (prompts; prompt examples must not copy script lines), `test_wakeword.py`, `test_scripts.py` (each script is valid and in the eval), `test_eval.py` (the eval's scoring) |
 | `eval/run.py` | the offline eval over its `SCRIPTS` (add a new script there and in `SCRIPTS` in `ObserverView.tsx`; `CLEAN_SCRIPTS` have the target "≤1 flag, 0 spoken"). Text only, virtual clock, no recap. Each turn is analyzed before the next, so it does not test live timing. `--runs N` runs each script N times. The scoring checks what Beacon said: summon refs and word count, `expect.mentions` in the spoken line, and the trigger. |
 | `eval/browser_check.js` | an optional Playwright check of the UI on a running server. Its header tells how to install Playwright outside the repo. |
-| `data/scripts/` | `demo_call.json` (planted moments, each with an `expect`), `demo_call_stt_noise.json` (the same call as Chrome can write it), `control_call.json` and `adversarial_clean.json` (clean calls), `live_regressions.json` (failures from live tests), `live_patterns.json` (a relapse, a split reply, two misreads in a row, "never mind", a pause after logistics), `summon_checks.json` (questions to Beacon; "declined" = not in the documents). `expect.outcome` can be a list. "quiet" = any state except spoken (`flag_required` also needs a flag). Answered summons have `refs`; spoken moments have `mentions`. |
+| `data/scripts/` | `demo_short.json` (the demo video: the planted moments in 18 lines), `demo_call.json` (planted moments in a full call, each with an `expect`), `demo_call_stt_noise.json` (the same call as Chrome can write it), `control_call.json` and `adversarial_clean.json` (clean calls), `live_regressions.json` (failures from live tests), `live_patterns.json` (a relapse, a split reply, two misreads in a row, "never mind", a pause after logistics), `summon_checks.json` (questions to Beacon; "declined" = not in the documents). `expect.outcome` can be a list. "quiet" = any state except spoken (`flag_required` also needs a flag). Answered summons have `refs`; spoken moments have `mentions`. |
 | `web/src/` | React: `useRoom.ts` (WebSocket hook), `CallView.tsx`, `ObserverView.tsx`, `Recap.tsx`, `components.tsx`, `speech.ts` (push-to-talk and text-to-speech), `simulate.ts` (script runner) |
 | `tasks.py` / `Makefile` | the task runner. The Makefile only calls `tasks.py`. |
 | `DECISIONS.md`, `WRITEUP.md` | the decision and tuning log; the challenge write-up (the author writes its "AI tools used" part) |
@@ -165,6 +166,7 @@ Latest Gemini eval: 2026-10-09, after the ladder and grading changes, **1 run** 
 demo_call_stt_noise 7/7 moments plus the quiet d23; control 1 private card (resolved at the next
 analysis), 0 spoken; adversarial_clean 0 cards; live_regressions 3/3; live_patterns 7/7;
 summon_checks 10/10.
+`demo_short` (added after this eval) has not run with Gemini yet.
 
 Before the changes (round 2, 2026-10-08, 3 runs per script, 0 errors): demo_call and
 demo_call_stt_noise 8/8 in every run; clean calls ≤1 private card and 0 spoken in every run;
