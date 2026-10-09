@@ -1,4 +1,4 @@
-"""Focused regressions for room turn-taking and the speech queue; no network or LLM calls."""
+"""Tests for push-to-talk, voice pauses and the speech queue in rooms.py. No network or LLM calls."""
 
 import asyncio
 import json
@@ -33,7 +33,7 @@ def test_only_the_holding_socket_can_release_push_to_talk():
         await rooms.disconnect(room, other)
         assert room.state.status.ptt_active == "parent"
 
-        # A failed broadcast must release the floor too, even before the receive loop exits.
+        # A failed broadcast must also release push-to-talk, before the receive loop stops.
         holder.fail = True
         await rooms.broadcast(room, StatusMessage(status=room.state.status))
         await rooms.disconnect(room, holder)
@@ -70,9 +70,9 @@ def test_voice_gaps_leave_out_the_time_to_press_the_key(monkeypatch):
         room.state.status.call_status = "live"
         sent = [
             ("counselor", 1_000, 2_000, "typed"),
-            ("parent", 4_000, 5_000, "voice"),  # 2000 ms after t1, 600 of them reaching for the key
-            ("counselor", 5_300, 6_000, "voice"),  # 300 ms: never below zero
-            ("parent", 9_000, 9_500, "typed"),  # typed turns keep the whole gap
+            ("parent", 4_000, 5_000, "voice"),  # 2000 ms after t1. 600 ms of it is the key press.
+            ("counselor", 5_300, 6_000, "voice"),  # 300 ms: the result is never below zero
+            ("parent", 9_000, 9_500, "typed"),  # a typed turn keeps the full pause
         ]
         for role, started, ended, source in sent:
             message = TurnMessage(type="turn", text="Hello.", started_at=started, ended_at=ended, source=source)

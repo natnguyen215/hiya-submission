@@ -1,5 +1,5 @@
-"""Unit tests for policy.py: evidence gate, dedupe, ladder, staleness, cooldown, questions, and
-the counselor's card buttons."""
+"""Unit tests for policy.py: the evidence gate, dedupe, the ladder, staleness, the cooldown,
+questions, and the counselor's card buttons."""
 
 from helpers import add_turn, make_state, new_flag, now, output
 
@@ -16,7 +16,7 @@ def log_text(actions):
 
 
 def covered_state():
-    """Counselor states the package, parent misreads it, analyzer flags it."""
+    """The counselor gives the aid package, the parent misreads it, and the analyzer flags it."""
     state = make_state(
         ("counselor", "Daniel's total aid package is $31,500."),
         ("parent", "Oh, thank goodness. So it's covered."),
@@ -73,7 +73,7 @@ def test_same_issue_key_is_ignored_the_second_time():
 
 
 def test_same_moment_under_a_new_key_is_ignored_even_after_it_was_resolved():
-    # Seen with Gemini: a resolved jargon flag came back as "..._2" with identical evidence.
+    # Seen with Gemini: a resolved jargon flag came back as "..._2" with the same evidence.
     state = covered_state()
     add_turn(state, "counselor", "To be clear, $14,000 of that is loans.")
     policy.after_analysis(state, output(resolved=["f1"]), 3, now(state))
@@ -125,8 +125,8 @@ def test_nudge_then_spoken_after_counselor_turns_without_clarifying():
 
 
 def test_staleness_counts_from_the_counselors_first_chance():
-    # The parent splits a reply over three push-to-talk presses after the card; the counselor's
-    # first turn after them still gets its chance, and moving on makes Beacon ask.
+    # After the card, the parent splits a reply over three push-to-talk presses. The counselor's
+    # next turn is still the first chance. The counselor moves on, so Beacon asks.
     state = covered_state()
     for text in ("Oh, wow.", "That's such a relief.", "Daniel will be thrilled."):
         add_turn(state, "parent", text)
@@ -152,7 +152,7 @@ def test_cooldown_delays_then_staleness_sends_to_recap():
 
 def test_a_counselor_turn_already_in_progress_when_the_card_appeared_does_not_count():
     state = make_state(("counselor", "Daniel's total aid package is $31,500."), ("parent", "So it's covered."))
-    card_at = now(state) + 4_000  # the analysis finished while the counselor held push-to-talk
+    card_at = now(state) + 4_000  # the analysis ended while the counselor held push-to-talk
     policy.after_analysis(state, output([new_flag(["t1", "t2"], ["So it's covered"])]), 2, card_at)
     turn = add_turn(state, "counselor", "And housing is $16,500.")
     turn.started_at, turn.ended_at = card_at - 3_000, card_at + 1_000  # started 3 s before the card
@@ -211,7 +211,7 @@ def test_unanswered_question_is_counted_by_code_then_escalates():
     state = question_state()
     add_turn(state, "counselor", "Next, accept your awards in the portal.")
     policy.after_analysis(state, output(), 3, now(state))
-    assert state.flags == []  # one counselor turn: the answer may still be credited late
+    assert state.flags == []  # after one counselor turn, the analyzer can still find the answer late
     add_turn(state, "counselor", "You'll get an email confirmation.")
     actions = policy.after_analysis(state, output(), 4, now(state))
     assert [(f.trigger, f.state) for f in state.flags] == [("UNANSWERED_QUESTION", "nudged")]
@@ -301,7 +301,7 @@ def test_recap_follow_ups_use_the_family_question_and_keep_dismissed_unanswered_
     assert analyzer.add_missing_follow_ups(recap, state) == ["f1"]
     assert recap.follow_ups[0].question == "How much of the aid package is loans we have to repay?"
 
-    # Dismissing an unanswered-question card silences it, but the family still gets the question.
+    # "Not an issue" on an unanswered-question card stops Beacon, but the family still gets the question.
     state = question_state()
     for text in ("Next, the portal.", "Then an email confirmation."):
         add_turn(state, "counselor", text)

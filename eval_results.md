@@ -1,35 +1,16 @@
 # Eval results
 
-- Lock-step (default): 2026-10-09 00:15 · model `gemini-3.5-flash-lite` · thinking `low` · cache on · 1 run(s) per script
-- Paced (--paced): not run yet
-
-| Script | Lock-step (default) | Paced (--paced) |
-|---|---|---|
-| demo_call | 7/7 moments pass in every run; all moments pass in 1/1 runs; 1/1 quiet moments (never spoken) stay quiet in every run | — |
-| demo_call_stt_noise | 7/7 moments pass in every run; all moments pass in 1/1 runs; 1/1 quiet moments (never spoken) stay quiet in every run | — |
-| control_call | flags per run 1 (target ≤1), spoken 0 (target 0) → PASS | — |
-| adversarial_clean | flags per run 0 (target ≤1), spoken 0 (target 0) → PASS | — |
-| live_regressions | 3/3 moments pass in every run; all moments pass in 1/1 runs | — |
-| live_patterns | 7/7 moments pass in every run; all moments pass in 1/1 runs | — |
-| summon_checks | 10/10 moments pass in every run; all moments pass in 1/1 runs | — |
-
-<!-- BEGIN lock-step -->
-<!-- summary {"header": "2026-10-09 00:15 \u00b7 model `gemini-3.5-flash-lite` \u00b7 thinking `low` \u00b7 cache on \u00b7 1 run(s) per script", "rows": {"demo_call": "7/7 moments pass in every run; all moments pass in 1/1 runs; 1/1 quiet moments (never spoken) stay quiet in every run", "demo_call_stt_noise": "7/7 moments pass in every run; all moments pass in 1/1 runs; 1/1 quiet moments (never spoken) stay quiet in every run", "control_call": "flags per run 1 (target \u22641), spoken 0 (target 0) \u2192 PASS", "adversarial_clean": "flags per run 0 (target \u22641), spoken 0 (target 0) \u2192 PASS", "live_regressions": "3/3 moments pass in every run; all moments pass in 1/1 runs", "live_patterns": "7/7 moments pass in every run; all moments pass in 1/1 runs", "summon_checks": "10/10 moments pass in every run; all moments pass in 1/1 runs"}} -->
-# Lock-step (default)
-
 2026-10-09 00:15 · model `gemini-3.5-flash-lite` · thinking `low` · cache on · 1 run(s) per script
 
-Timing per run. "Spoke when due": of the flags the ladder found due, how many Beacon said aloud.
-
-| Script | Run | Analyses | Turns seen late | Lines withdrawn | Flags deferred | Flags stale | Spoke when due |
-|---|---|---|---|---|---|---|---|
-| demo_call | 1 | 24 | 0 | 0 | 0 | 0 | 2/2 |
-| demo_call_stt_noise | 1 | 24 | 0 | 0 | 0 | 0 | 2/2 |
-| control_call | 1 | 13 | 0 | 0 | 0 | 0 | — |
-| adversarial_clean | 1 | 14 | 0 | 0 | 0 | 0 | — |
-| live_regressions | 1 | 7 | 0 | 0 | 0 | 0 | — |
-| live_patterns | 1 | 23 | 0 | 0 | 0 | 0 | 3/4 |
-| summon_checks | 1 | 10 | 0 | 0 | 0 | 0 | — |
+| Script | Result |
+|---|---|
+| demo_call | 7/7 moments pass in every run; all moments pass in 1/1 runs; 1/1 quiet moments (never spoken) stay quiet in every run |
+| demo_call_stt_noise | 7/7 moments pass in every run; all moments pass in 1/1 runs; 1/1 quiet moments (never spoken) stay quiet in every run |
+| control_call | flags per run 1 (target ≤1), spoken 0 (target 0) → PASS |
+| adversarial_clean | flags per run 0 (target ≤1), spoken 0 (target 0) → PASS |
+| live_regressions | 3/3 moments pass in every run; all moments pass in 1/1 runs |
+| live_patterns | 7/7 moments pass in every run; all moments pass in 1/1 runs |
+| summon_checks | 10/10 moments pass in every run; all moments pass in 1/1 runs |
 
 ## demo_call
 
@@ -468,4 +449,3 @@ t22 BEACON: I do not have the due date for the first tuition payment in my docum
 - Analyzer latency over 15 network calls: mean 1376 ms, max 2396 ms
 - Summon latency: no network calls
 - Errors: 0
-<!-- END lock-step -->

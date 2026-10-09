@@ -1,4 +1,5 @@
-// The call screen for the counselor or the parent: shared transcript, push-to-talk and typed turns, the counselor's private Beacon panel, and the Family Recap.
+// The call screen for the counselor or the parent: the transcript, push-to-talk and typed turns,
+// the counselor's private Beacon panel, and the Family Recap.
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { FlagCard, StatusBar, Transcript, speakerName } from "./components";
 import { FamilyRecap } from "./Recap";
@@ -11,9 +12,9 @@ export function CallView({ room, role }: { room: string; role: Speaker }) {
   const [playingHere, setPlayingHere] = useState(false);
   const interacted = useHasInteracted();
   const { state, settings, connected, lastError, showError, send, stateRef } = useRoom(room, role, {
-    // Runs later, on a socket message, so it can use `send` and `stateRef` returned by this same call.
+    // This runs later, when a message arrives. So it can use `send` and `stateRef` from this call.
     onBeaconSay(say) {
-      // In a simulated call the observer plays every voice, so call tabs stay silent.
+      // In a simulated call, the observer plays all voices. The call tabs stay silent.
       if (!playAudio || stateRef.current?.status.simulated) return;
       setPlayingHere(true);
       speak(say.text, "beacon").then(() => {
@@ -27,10 +28,10 @@ export function CallView({ room, role }: { room: string; role: Speaker }) {
 
   const { status } = state;
   const live = status.call_status === "live";
-  // Push-to-talk must stay off while this is true, or the microphone would transcribe Beacon. The
-  // local flag matters when the server gave up waiting (its playback timeout) while this tab still plays.
+  // Push-to-talk stays off while this is true. If not, the microphone would hear Beacon.
+  // playingHere is necessary if the server stopped waiting (timeout) but this tab still plays.
   const beaconSpeaking = status.speaking_turn_id !== null || playingHere;
-  // The other person holding push-to-talk has the floor, so two people don't talk over each other.
+  // If the other person holds push-to-talk, this person must wait. Two people cannot talk at the same time.
   const otherTalking =
     status.ptt_active && status.ptt_active !== role ? speakerName(status.ptt_active, settings) : null;
   const name = role === "counselor" ? settings.counselor_name : settings.parent_name;
@@ -96,9 +97,9 @@ export function CallView({ room, role }: { room: string; role: Speaker }) {
   );
 }
 
-/** Whether the user has clicked or pressed a key in this tab yet. Until then Chrome won't let the tab speak. */
+/** True after the user clicks or presses a key in this tab. Before that, Chrome does not let the tab speak. */
 function useHasInteracted(): boolean {
-  // Without the API (not Chrome) we can't tell, so don't nag.
+  // Other browsers do not have this API. Then we cannot know, so do not show the notice.
   const [interacted, setInteracted] = useState(() => navigator.userActivation?.hasBeenActive ?? true);
   useEffect(() => {
     if (interacted) return;
@@ -114,23 +115,23 @@ function useHasInteracted(): boolean {
 }
 
 interface PushToTalkProps {
-  live: boolean; // the call is on, so Space is the talk key even while a new press is refused
-  disabled: boolean; // a new press is refused; one already held always finishes
-  otherTalking: string | null; // name of the other person holding push-to-talk
+  live: boolean; // the call is live, so Space is the talk key (also when a new press is refused)
+  disabled: boolean; // a new press is refused. A press that started always finishes.
+  otherTalking: string | null; // the name of the other person, if they hold push-to-talk
   onSend: (message: ClientMessage) => void;
   onError: (message: string) => void;
 }
 
-/** The spoken path for a turn: hold the button or the spacebar, speak, release. */
+/** A spoken turn: hold the button or the space bar, speak, and release. */
 function PushToTalk({ live, disabled, otherTalking, onSend, onError }: PushToTalkProps) {
   const [phase, setPhase] = useState<"idle" | "listening" | "sending">("idle");
   const [heard, setHeard] = useState("");
-  // The press in progress, from press until its turn is sent. A ref, so a release (and a second
-  // release event, e.g. pointerup then pointerleave) sees it without waiting for a render.
+  // The current press, from the press until its turn is sent. It is a ref, so a release event
+  // sees it at once (also a second release event, such as pointerup then pointerleave).
   const press = useRef<{ listening: Listening; startedAt: number; released: boolean } | null>(null);
 
   function start() {
-    // One press at a time: the previous one may still be waiting for its final text.
+    // One press at a time. The previous press can still wait for its final text.
     if (!canListen || disabled || press.current) return;
     onSend({ type: "ptt_start" });
     press.current = { listening: startListening(setHeard, onError), startedAt: Date.now(), released: false };
@@ -144,8 +145,8 @@ function PushToTalk({ live, disabled, otherTalking, onSend, onError }: PushToTal
     const endedAt = Date.now();
     setPhase("sending");
     const text = await current.listening.stop();
-    // The turn goes before ptt_stop: Beacon may speak a moment after ptt_stop, and by then the
-    // server must already have this turn (it also withdraws a queued line when a turn arrives).
+    // Send the turn before ptt_stop. Beacon can speak soon after ptt_stop, so the server must have
+    // the turn first. (A new turn also removes a line from Beacon's queue.)
     if (text) onSend({ type: "turn", text, started_at: current.startedAt, ended_at: endedAt, source: "voice" });
     onSend({ type: "ptt_stop" });
     press.current = null;
@@ -153,17 +154,17 @@ function PushToTalk({ live, disabled, otherTalking, onSend, onError }: PushToTal
     setPhase("idle");
   }
 
-  // No dependency list: re-subscribing after every render keeps the handlers on the current props.
+  // No dependency list. The handlers are added again after each render, so they use the current props.
   useEffect(() => {
     function down(event: KeyboardEvent) {
       if (event.code !== "Space") return;
       // Form controls keep their own Space: a space in the text box, a tick in the checkbox.
       if (event.target instanceof Element && event.target.matches("input, select, textarea")) return;
-      // When this tab can't talk, Space stays Space, e.g. it presses Read aloud or Download .md after the call.
+      // If this tab cannot talk, Space does its usual work, such as a click on "Read aloud" after the call.
       if (!(live && canListen) && !press.current) return;
-      event.preventDefault(); // no page scroll, and no click on a focused button such as End call
-      // Repeats too: a hold that began while a press was refused (Beacon speaking) starts once it is allowed.
-      // start() ignores them while a press is in progress, so one hold is still one turn.
+      event.preventDefault(); // no page scroll, and no click on a button with focus, such as End call
+      // Key repeats also come here. If a press was refused (Beacon was speaking), the held key
+      // starts the press when it is permitted. start() ignores repeats during a press: one hold is one turn.
       start();
     }
     function up(event: KeyboardEvent) {
@@ -171,8 +172,8 @@ function PushToTalk({ live, disabled, otherTalking, onSend, onError }: PushToTal
     }
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
-    // Leaving the tab mid-press (alt-tab, another tab) means the keyup or pointerup never arrives
-    // here. Release now: a press that never ends holds the floor, and Beacon could never speak again.
+    // If the user leaves the tab during a press, keyup and pointerup do not come. So release now.
+    // A press that does not end holds push-to-talk forever, and Beacon could not speak again.
     window.addEventListener("blur", stop);
     return () => {
       window.removeEventListener("keydown", down);
@@ -191,7 +192,7 @@ function PushToTalk({ live, disabled, otherTalking, onSend, onError }: PushToTal
       {heard && <p className="heard">{heard}</p>}
       <button
         className={`talk${phase === "listening" ? " listening" : ""}`}
-        // Never disabled while held: a disabled button gets no pointer events, so the release would be lost.
+        // Not disabled while held: a disabled button gets no pointer events, so the release would be lost.
         disabled={phase === "sending" || (phase === "idle" && (disabled || !canListen))}
         title={canListen ? undefined : "Speech recognition needs Chrome. You can still type."}
         onPointerDown={start}
@@ -205,15 +206,15 @@ function PushToTalk({ live, disabled, otherTalking, onSend, onError }: PushToTal
   );
 }
 
-/** The typed path for a turn: works without a microphone, so it doubles as the debug path. */
+/** A typed turn. It works without a microphone, so it is also good for tests. */
 function TypedTurn({ disabled, onSend }: { disabled: boolean; onSend: (message: ClientMessage) => void }) {
   const [text, setText] = useState("");
-  // When this turn began (first keystroke); the server measures the pause before the turn from it.
+  // When the turn started (the first key). The server uses it to find the pause before the turn.
   const startedAt = useRef<number | null>(null);
 
   function change(value: string) {
     if (startedAt.current === null) startedAt.current = Date.now();
-    if (value === "") startedAt.current = null; // erased everything: the turn hasn't started after all
+    if (value === "") startedAt.current = null; // the text is empty again, so the turn has not started
     setText(value);
   }
 

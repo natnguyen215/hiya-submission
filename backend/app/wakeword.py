@@ -1,17 +1,17 @@
-"""Detects the wake word ("Beacon") in a turn and extracts the question addressed to it."""
+"""Finds the wake word ("Beacon") in a turn, and the question to Beacon."""
 
 import re
 from difflib import SequenceMatcher
 
 from . import config
 
-# Speech recognition rarely adds "?", so a question is recognized by how it starts.
+# Speech recognition does not often add "?". So the first word shows that it is a question.
 QUESTION_WORDS = {
     "what", "whats", "how", "hows", "why", "when", "where", "wheres", "who", "whos", "which",
     "tell", "explain", "define", "remind",
 }
-# "Beacon, can you..." is a question but "Beacon can help later" is not: an auxiliary only
-# starts a question when a subject follows it.
+# "Beacon, can you..." is a question, but "Beacon can help later" is not. A word such as "can"
+# starts a question only if a subject ("you", "it", ...) comes after it.
 AUXILIARIES = {"is", "are", "do", "does", "did", "can", "could", "should", "would", "will"}
 SUBJECTS = {
     "i", "you", "we", "it", "they", "he", "she", "there", "this", "that", "these", "those",
@@ -41,11 +41,11 @@ def _is_wake_word(chunk: str) -> bool:
 
 
 def find_summon(text: str) -> str | None:
-    """Return the question addressed to Beacon, or None if the turn is not a summon.
+    """Return the question to Beacon. Return None if the turn is not a summon.
 
-    Recognition may split the name ("bea con"), so windows of 1-3 words are joined and fuzzy
-    matched. The question is the text after the wake word, or before it if nothing follows
-    ("What's SAP, Beacon?").
+    Speech recognition can split the name ("bea con"). So each group of 1-3 words is joined and
+    compared with the wake word. The question is the text after the wake word. If no text comes
+    after it, the question is the text before it ("What's SAP, Beacon?").
     """
     words = _words(text)
     for start in range(len(words)):

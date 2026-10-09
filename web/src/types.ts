@@ -1,10 +1,11 @@
-// The WebSocket protocol and shared state shapes. Mirrors backend/app/models.py; change both together.
+// The WebSocket messages and the state shapes. They are the same as in backend/app/models.py.
+// Change the two files together.
 
 export type Speaker = "counselor" | "parent";
 export type Role = Speaker | "beacon";
 export type ClientRole = Speaker | "observer";
 export type FlagState = "nudged" | "resolved" | "spoken" | "recap" | "dismissed" | "dropped";
-export type CardAction = "dismiss" | "will_clarify"; // the two buttons on the counselor's nudge card
+export type CardAction = "dismiss" | "will_clarify"; // the two buttons on the counselor's card
 
 export interface Turn {
   id: string;
@@ -12,7 +13,7 @@ export interface Turn {
   text: string;
   started_at: number; // epoch ms
   ended_at: number;
-  gap_ms: number | null; // silence before this turn
+  gap_ms: number | null; // the silence before this turn
   source: "voice" | "typed" | "script" | "beacon";
 }
 
@@ -31,14 +32,13 @@ export interface Flag {
   evidence_quotes: string[];
   counselor_card: string;
   suggested_clarification: string;
-  spoken_line: string; // addressed to the counselor
-  family_question: string; // the same question for the family to ask the aid office later (recap)
+  spoken_line: string; // Beacon says it to the counselor
+  family_question: string; // the same question, for the family to ask the aid office later (recap)
   doc_refs: string[];
   state: FlagState;
-  created_at_turn: string;
-  ladder_start_turn: string; // the ladder counts turns after this one; "I'll clarify" moves it
-  ladder_start_ms: number; // epoch ms of the same moment; counselor turns that started earlier don't count
-  grace_turns: number; // extra counselor turns before Beacon may speak
+  ladder_start_turn: string; // the ladder counts the turns after this turn. "I'll clarify" moves it.
+  ladder_start_ms: number; // the same moment (epoch ms). A counselor turn that started before it does not count.
+  grace_turns: number; // more counselor turns before Beacon can speak
   counselor_action: "will_clarify" | "dismissed" | null; // the counselor's last click on the card
   history: FlagEvent[];
 }

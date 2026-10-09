@@ -1,9 +1,9 @@
-"""Small builders shared by the tests: transcripts and analyzer outputs without any LLM."""
+"""Helpers for the tests: they make transcripts and analyzer outputs without an LLM."""
 
 from backend.app.models import AnalyzerOutput, NewFlag, QuestionAnswered, QuestionOpened, RoomState, Turn
 
-# Turns are stamped on a clock: each starts 500 ms after the previous one ended and lasts 500 ms,
-# so they start 1000 ms apart. The ladder compares turn start times with when a card appeared.
+# Each turn starts 500 ms after the previous turn ended, and lasts 500 ms. So turns start 1000 ms
+# apart. The ladder compares the start time of a turn with the time when a card appeared.
 START_MS = 1_000_000_000
 
 
@@ -30,7 +30,7 @@ def add_turn(state: RoomState, role: str, text: str, gap_ms: int = 500) -> Turn:
 
 
 def now(state: RoomState) -> int:
-    """The clock just after the newest turn ended: when an analysis of it would finish."""
+    """The time when the newest turn ended. An analysis of that turn finishes at this time."""
     return state.turns[-1].ended_at
 
 

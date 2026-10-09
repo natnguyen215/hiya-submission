@@ -1,11 +1,12 @@
-// The room connection: one WebSocket per tab, server messages folded into local state, reconnect on drop.
+// The connection to the room. Each tab has one WebSocket. The server messages update the local
+// state. If the connection closes, the tab connects again.
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ClientMessage, ClientRole, Flag, RoomState, ServerMessage, Settings } from "./types";
 
 type BeaconSay = Extract<ServerMessage, { type: "beacon_say" }>;
 
 interface Options {
-  // Called once per line Beacon says, so the tab can decide whether to play it.
+  // Called once for each line that Beacon says. The tab decides if it plays the line.
   onBeaconSay?: (say: BeaconSay) => void;
 }
 
@@ -13,13 +14,13 @@ function upsert(flags: Flag[], flag: Flag): Flag[] {
   return flags.some((f) => f.id === flag.id) ? flags.map((f) => (f.id === flag.id ? flag : f)) : [...flags, flag];
 }
 
-// A snapshot replaces everything; every other message is an increment on top of the last snapshot.
+// A snapshot replaces the full state. Each other message changes one part of it.
 function apply(state: RoomState | null, message: ServerMessage): RoomState | null {
   if (message.type === "snapshot") return message.state;
-  if (!state) return null; // increments mean nothing until the first snapshot arrives
+  if (!state) return null; // a change has no meaning before the first snapshot
   switch (message.type) {
     case "turn_added":
-      // Turn ids are positional (t1, t2, ...), so a known id means we already have this turn.
+      // Turn ids follow the transcript order (t1, t2, ...). A known id is a turn that we have.
       if (state.turns.some((t) => t.id === message.turn.id)) return state;
       return { ...state, turns: [...state.turns, message.turn] };
     case "flag_card":
@@ -41,13 +42,13 @@ export function useRoom(room: string, role: ClientRole, { onBeaconSay }: Options
   const [settings, setSettings] = useState<Settings | null>(null);
   const [connected, setConnected] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
-  // Long-running async code (the simulation runner, audio callbacks) reads the room through this
-  // ref: a value captured from React state would be frozen at the render that created the closure.
+  // Async code that runs for a long time (the simulation runner, audio callbacks) reads the room
+  // from this ref. A value from React state would stay as it was when the closure was made.
   const stateRef = useRef<RoomState | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const errorTimer = useRef<number | undefined>(undefined);
 
-  // The socket handler is created once per connection, so it calls whatever callback the latest render passed.
+  // The socket handler is made once per connection. This ref gives it the newest callback.
   const onBeaconSayRef = useRef(onBeaconSay);
   useEffect(() => {
     onBeaconSayRef.current = onBeaconSay;
@@ -82,7 +83,7 @@ export function useRoom(room: string, role: ClientRole, { onBeaconSay }: Options
       socket.onmessage = (event) => handle(JSON.parse(event.data) as ServerMessage);
       socket.onclose = () => {
         setConnected(false);
-        // The server answers every join with a full snapshot, so reconnecting is all it takes to resync.
+        // The server sends a full snapshot after each join. So a new connection gets the full state again.
         if (!closedByUs) retryTimer = window.setTimeout(connect, 1000);
       };
     }

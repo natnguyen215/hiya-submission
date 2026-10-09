@@ -1,4 +1,4 @@
-"""Unit tests for wake word detection, including ordinary phrases that must not trigger it."""
+"""Tests for the wake word, also with usual phrases that must not start a summon."""
 
 import pytest
 

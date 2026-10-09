@@ -1,4 +1,5 @@
-// The demo and debugging dashboard: whole room state, decision log, documents, and the simulation runner.
+// The observer dashboard, for the demo and for debugging: the full room state, the decision log,
+// the documents, and the simulation runner.
 import { useEffect, useRef, useState } from "react";
 import { FlagCard, StatusBar, Transcript, useScrollToEnd } from "./components";
 import { FamilyRecap } from "./Recap";
@@ -7,7 +8,7 @@ import { speak, stopSpeaking, useBeaconAudioSetting } from "./speech";
 import type { DocLine, LogEntry, ScriptTurn } from "./types";
 import { useRoom } from "./useRoom";
 
-// The same scripts the offline eval runs (eval/run.py's SCRIPTS); the demo video uses demo_call.
+// The same scripts as SCRIPTS in eval/run.py. The demo video uses demo_call.
 const SCRIPTS = [
   "demo_call",
   "control_call",
@@ -30,26 +31,26 @@ export function ObserverView({ room }: { room: string }) {
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [hoveredFlagId, setHoveredFlagId] = useState<string | null>(null);
-  const [hoveredRef, setHoveredRef] = useState<string | null>(null); // a recap reference: t12, L10, ...
+  const [hoveredRef, setHoveredRef] = useState<string | null>(null); // a reference in the recap: t12, L10, ...
   const [documents, setDocuments] = useState<DocLine[]>([]);
-  // The running simulation's stop handle. A ref, not state, so the audio callback sees it the
-  // moment a run starts rather than after the next render.
+  // The stop handle of the running simulation. It is a ref, not state, so the audio callback
+  // sees it at once when a run starts, not after the next render.
   const simulation = useRef<AbortController | null>(null);
 
   const { state, settings, connected, lastError, send, stateRef } = useRoom(room, "observer", {
-    // Runs later, on a socket message, so it can use `send` returned by this same call.
+    // This runs later, when a message arrives. So it can use `send` from this call.
     onBeaconSay(say) {
       const done = () => send({ type: "beacon_playback_done", turn_id: say.turn_id });
-      // While simulating, this tab plays every voice (the call tabs stay silent). In text-only mode
-      // nobody needs to hear it, so report it played at once and let the script continue. (The
-      // checkbox is locked during a run, so `textOnly` is the running script's setting.)
+      // During a simulation, this tab plays all voices (the call tabs stay silent). In text-only
+      // mode, nobody must hear it. So report "done" at once, and the script continues.
+      // (The checkbox is locked during a run, so `textOnly` is the setting of the running script.)
       if (simulation.current && textOnly) done();
       else if (simulation.current || playAudio) speak(say.text, "beacon").then(done);
     },
   });
 
-  // Fetched once the socket is up rather than on mount, so a tab opened before the backend was
-  // ready still gets the documents when it reconnects.
+  // Get the documents when the socket connects, not on mount. A tab that opened before the
+  // backend was ready then gets the documents when it connects again.
   useEffect(() => {
     if (!connected || documents.length > 0) return;
     fetch("/api/documents")
@@ -61,8 +62,8 @@ export function ObserverView({ room }: { room: string }) {
       .catch((error) => console.error("Could not load documents", error));
   }, [connected, documents.length]);
 
-  // A hovered flag's evidence and citations, or a hovered recap reference, are often far up their
-  // lists; bring them into view.
+  // Scroll the lists to show the evidence and citations of the flag under the pointer, or the
+  // recap reference under the pointer.
   useEffect(() => {
     if (!hoveredFlagId && !hoveredRef) return;
     revealInList(document.querySelector(".turn.highlighted"));
@@ -76,7 +77,7 @@ export function ObserverView({ room }: { room: string }) {
     setRunning(true);
     setProgress({ text: `Loading ${scriptName}…` });
     try {
-      // The signal lets Stop cancel the download too, before the runner resets the room.
+      // With the signal, Stop also cancels the download, before the runner resets the room.
       const response = await fetch(`/api/scripts/${scriptName}`, { signal: controller.signal });
       if (!response.ok) throw new Error(`could not load ${scriptName} (HTTP ${response.status})`);
       const script: ScriptTurn[] = await response.json();
@@ -105,7 +106,7 @@ export function ObserverView({ room }: { room: string }) {
 
   const { status } = state;
   const hovered = state.flags.find((f) => f.id === hoveredFlagId);
-  // A recap reference is either a turn id or a document line id; each list highlights the ids it has.
+  // A recap reference is a turn id or a document line id. Each list highlights the ids that it has.
   const highlightedTurns = new Set(hoveredRef ? [hoveredRef] : hovered?.evidence_turn_ids);
   const highlightedLines = new Set(hoveredRef ? [hoveredRef] : hovered?.doc_refs);
 
@@ -196,16 +197,16 @@ export function ObserverView({ room }: { room: string }) {
 }
 
 /**
- * Scrolls the transcript or document list just enough to show `element`. Not scrollIntoView: that
- * also scrolls the page, which moves the hovered flag or reference out from under the pointer and ends the hover.
+ * Scrolls the transcript or the document list just enough to show `element`.
+ * Not scrollIntoView: it also scrolls the page. Then the item under the pointer moves away, and the hover stops.
  */
 function revealInList(element: Element | null) {
   const list = element?.closest(".transcript, .documents");
   if (!element || !list) return;
-  const top = element.getBoundingClientRect().top - list.getBoundingClientRect().top; // from the list's visible top
+  const top = element.getBoundingClientRect().top - list.getBoundingClientRect().top; // from the top of the visible list
   const bottom = top + element.getBoundingClientRect().height;
   if (top < 0) list.scrollTop += top;
-  // An element taller than the list shows its top.
+  // If the element is taller than the list, show its top.
   else if (bottom > list.clientHeight) list.scrollTop += Math.min(top, bottom - list.clientHeight);
 }
 
@@ -214,7 +215,7 @@ function DecisionLog({ entries }: { entries: LogEntry[] }) {
   return (
     <ol className="log" ref={ref}>
       {entries.length === 0 && <li className="empty">Nothing logged yet.</li>}
-      {/* The log only grows (a reset replaces it whole), so an entry's index is a stable key. */}
+      {/* The log only gets longer (a reset replaces all of it), so the index is a stable key. */}
       {entries.map((entry, i) => (
         <li key={i} className={`log-entry log-${entry.kind}`}>
           <time>{new Date(entry.at).toTimeString().slice(0, 8)}</time>
@@ -245,7 +246,7 @@ function Documents({ lines, cited }: { lines: DocLine[]; cited: Set<string> }) {
         <section key={doc}>
           <h3>{doc}</h3>
           <ul>
-            {/* The glossary bolds its terms in Markdown; here the asterisks are just noise. */}
+            {/* The glossary uses Markdown bold for its terms. Remove the asterisks here. */}
             {lines
               .filter((line) => line.doc === doc)
               .map((line) => (
