@@ -8,6 +8,8 @@ const POLL_MS = 100;
 // the lines appear as fast as the analysis runs, and the viewer cannot follow the call.
 const READ_MS_BASE = 2000;
 const READ_MS_PER_WORD = 350;
+// A simulation with audio speaks a little faster than normal, so a demo fits in a short video.
+export const SIM_SPEECH_SPEED = 1.15;
 
 /** The time to read a line on screen. A text-only run waits this long after each line appears. */
 export function readingTimeMs(text: string): number {
@@ -94,7 +96,7 @@ export async function runSimulation(script: ScriptTurn[], options: SimulationOpt
     await sleep(line.pause_before_ms, signal);
     if (!textOnly) {
       step(`${line.role} speaking`);
-      await speak(line.text, line.role);
+      await speak(line.text, line.role, SIM_SPEECH_SPEED);
       signal.throwIfAborted(); // Stop cancels the speech, so speak() ends early
     }
 

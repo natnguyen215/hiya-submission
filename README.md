@@ -25,7 +25,7 @@ must be about the moment, the trigger must match). There were 0 errors.
 
 | Script | What it tests | Result |
 |---|---|---|
-| `demo_short` | the demo video: the moments of `demo_call` in 18 lines (no restatements, no quiet moment) | not run yet |
+| `demo_short` | the demo video: 4 moments of `demo_call` in 13 lines (a misreading fixed, a misreading Beacon asks about, unexplained jargon, a summon) | not run yet |
 | `demo_call` | 7 planted moments (misreadings, unexplained jargon, an ignored question, a summon, correct restatements) and 1 moment that must stay quiet | 7/7, and the quiet moment stayed quiet |
 | `demo_call_stt_noise` | the same call as Chrome transcribes it: lowercase, no question marks, mis-heard words | 7/7, quiet moment quiet |
 | `control_call` | a clear call with nothing planted | 0 spoken interjections, 1 private card (resolved on the next analysis) |
@@ -105,7 +105,7 @@ line for simulations: the planted 3-second pause needs the default of 2000.
 ## Run a simulation
 
 1. Open the observer.
-2. Select a script. `demo_short` (the default) has the planted misunderstandings in 18 lines;
+2. Select a script. `demo_short` (the default) has the planted misunderstandings in 13 lines;
    `demo_call` is the full-length call. `control_call` is a clear call.
 3. Click **Play**.
 
@@ -115,8 +115,9 @@ calls. Open the counselor window next to the observer to see the cards.
 
 "Text only (no audio)" is ticked by default for a silent run. It waits on each line for about the
 time to read it (2 s plus 0.35 s per word), Beacon's lines too, so you can follow the call.
-Untick it to hear Alex, Maria and Beacon in different voices. The observer then plays every
-voice, and the call windows stay silent.
+Untick it to hear Alex, Maria and Beacon in different voices, a little faster than normal (1.15×)
+so a demo fits in a short video. The observer then plays every voice, and the call windows stay
+silent.
 
 A text-only run is still faster than speech. A later interjection can then fall inside the
 20-second cooldown and go to the recap instead of being spoken. Runs with audio keep real

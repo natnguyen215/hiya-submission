@@ -23,7 +23,7 @@ from backend.app.llm import GeminiLLM
 from backend.app.models import Flag, LogEntry, RoomState, SummonAnswer, Turn
 
 SCRIPTS = [
-    "demo_short",  # the demo video: the planted moments of demo_call in 18 lines
+    "demo_short",  # the demo video: 4 planted moments of demo_call in 13 lines
     "demo_call",  # the planted moments in a full-length call
     "demo_call_stt_noise",  # the same call, as Chrome's speech recognition writes it
     "control_call",  # a clean call

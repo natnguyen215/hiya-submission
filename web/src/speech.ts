@@ -57,8 +57,11 @@ async function pickStyles(): Promise<Record<Role, VoiceStyle>> {
   return { counselor: style("counselor"), parent: style("parent"), beacon: style("beacon") };
 }
 
-/** Speaks `text` in the voice of `who`. Always resolves, also after an error, so the call does not stop. */
-export async function speak(text: string, who: Role): Promise<void> {
+/**
+ * Speaks `text` in the voice of `who`. `speed` multiplies the voice's normal rate.
+ * Always resolves, also after an error, so the call does not stop.
+ */
+export async function speak(text: string, who: Role, speed = 1): Promise<void> {
   if (!("speechSynthesis" in window)) return;
   const beforeLoading = cancellation;
   styles ??= pickStyles();
@@ -69,7 +72,7 @@ export async function speak(text: string, who: Role): Promise<void> {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.voice = voice;
     utterance.pitch = pitch;
-    utterance.rate = rate;
+    utterance.rate = rate * speed;
     // For a browser that does not report the end. The time is more than the line needs.
     const timer = setTimeout(finish, 4000 + text.split(" ").length * 700);
     function finish() {

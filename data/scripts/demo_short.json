@@ -2,7 +2,7 @@
   {
     "id": "s01",
     "role": "counselor",
-    "text": "Hi, Maria? It's Alex from financial aid at Westbrook State. Daniel's award letter is ready. Big number first: his total aid package is $31,500.",
+    "text": "Hi Maria, it's Alex from Westbrook State financial aid. Big number first: Daniel's total aid package is $31,500.",
     "pause_before_ms": 300
   },
   {
@@ -19,7 +19,7 @@
   {
     "id": "s03",
     "role": "counselor",
-    "text": "Well, not quite. $14,000 of it is loans, which get paid back, and $2,500 is work-study, which Daniel earns at a campus job. Only the $15,000 in grants is free money.",
+    "text": "Not quite. $14,000 of that is loans you pay back, and $2,500 is work-study he earns at a campus job. Only the $15,000 in grants is free.",
     "pause_before_ms": 800
   },
   {
@@ -52,13 +52,13 @@
   {
     "id": "s07",
     "role": "counselor",
-    "text": "So, on to housing. Housing and meals are estimated at $16,500 for the year, out of a total yearly cost of $38,000.",
+    "text": "So, on to housing. Housing and meals are about $16,500 a year.",
     "pause_before_ms": 500
   },
   {
     "id": "s08",
     "role": "counselor",
-    "text": "Oh, good catch, thank you. Maria, sorry, I went right past that. Verification means the school needs more documents from you, like tax return transcripts. They're due July 15, or Daniel's aid could be delayed. Now, to keep the Westbrook Grant, Daniel needs to maintain SAP each term.",
+    "text": "Oh, good catch. Sorry, Maria. Verification means the school needs more documents from you, due July 15. Now, to keep the Westbrook Grant, Daniel needs to maintain SAP each term.",
     "pause_before_ms": 1200
   },
   {
@@ -75,51 +75,11 @@
   {
     "id": "s10",
     "role": "counselor",
-    "text": "Sorry, let me explain. SAP is Satisfactory Academic Progress. Each term, Daniel needs at least a 2.0 GPA, about a C average, and has to complete at least 67 percent of the credits he attempts.",
+    "text": "Sorry, let me explain. SAP is Satisfactory Academic Progress: at least a 2.0 GPA, and finishing 67 percent of the credits he attempts.",
     "pause_before_ms": 700
   },
   {
     "id": "s11",
-    "role": "parent",
-    "text": "Got it, a C average, and he finishes 67 percent of the credits he attempts. Um, does the work-study money have to be paid back?",
-    "pause_before_ms": 700,
-    "expect": {
-      "trigger": "UNANSWERED_QUESTION",
-      "outcome": "spoken",
-      "note": "Alex skips the question for three turns of portal logistics: the private card appears after the second, and Beacon reminds him aloud after the third. Alex then answers: it is earned as paychecks, never repaid, and not credited to the bill upfront.",
-      "mentions": [
-        "work-study",
-        "work study",
-        "paid back"
-      ]
-    }
-  },
-  {
-    "id": "s12",
-    "role": "counselor",
-    "text": "So, next step. You'll accept the awards in the student portal, and you can accept or decline each one separately.",
-    "pause_before_ms": 500
-  },
-  {
-    "id": "s13",
-    "role": "counselor",
-    "text": "Once you submit, you'll get an email confirmation.",
-    "pause_before_ms": 400
-  },
-  {
-    "id": "s14",
-    "role": "counselor",
-    "text": "And you can change your mind on any award until the first day of classes.",
-    "pause_before_ms": 500
-  },
-  {
-    "id": "s15",
-    "role": "counselor",
-    "text": "Oh, you're right, I skipped your question, Maria. No, work-study isn't paid back. Daniel earns the $2,500 as paychecks from a campus job. It just isn't credited to the bill upfront.",
-    "pause_before_ms": 1200
-  },
-  {
-    "id": "s16",
     "role": "parent",
     "text": "Beacon, what's a Parent PLUS loan?",
     "pause_before_ms": 800,
@@ -134,15 +94,15 @@
     }
   },
   {
-    "id": "s17",
+    "id": "s12",
     "role": "counselor",
-    "text": "Yep, that's exactly right. It's optional, and you don't have to decide on it today.",
+    "text": "Yep, exactly. And it's optional, so you don't have to decide today.",
     "pause_before_ms": 1200
   },
   {
-    "id": "s18",
+    "id": "s13",
     "role": "parent",
-    "text": "Okay, good. I'd like to think that one over. Thank you so much, Alex, this really helped.",
+    "text": "Thank you so much, Alex. This really helped.",
     "pause_before_ms": 600
   }
 ]
