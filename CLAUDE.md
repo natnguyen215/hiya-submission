@@ -19,8 +19,8 @@ DECISIONS.md, and LLM prompts in `backend/prompts/*.txt`, never in Python string
 3. `backend/app/rooms.py`: how decisions are carried out (WebSocket rooms, analysis loop, speech
    queue, timing). Start at `add_turn()`.
 4. `backend/app/analyzer.py` + `backend/prompts/analyzer.txt`: what the LLM is asked to perceive.
-5. `DECISIONS.md`: why things are the way they are, including deliberate deviations from the
-   original build plan and the tuning log. Check it before "fixing" something that looks odd.
+5. `DECISIONS.md`: why things are the way they are, including deliberate design choices and the
+   tuning log. Check it before "fixing" something that looks odd.
 
 ## The design rule: the LLM perceives, Python decides
 
@@ -122,7 +122,7 @@ its audio) acks instantly.
 | `data/scripts/` | `demo_call.json` (planted moments, each with an `expect`), `demo_call_stt_noise.json` (the same call as Chrome might transcribe it), `control_call.json` and `adversarial_clean.json` (clean calls), `live_regressions.json` (failures seen in live testing), `live_patterns.json` (live timing patterns: relapse, split reply, back-to-back misreads, "never mind", a pause after logistics), `summon_checks.json` (questions to Beacon; `expect.outcome` "declined" = not in the documents). `expect.outcome` may be a list; "quiet" = any state except spoken (`flag_required` also needs a flag); answered summons carry `refs`, spoken moments `mentions` |
 | `web/src/` | React: `useRoom.ts` (WebSocket hook), `CallView.tsx`, `ObserverView.tsx`, `Recap.tsx`, `components.tsx`, `speech.ts` (push-to-talk + TTS), `simulate.ts` (script runner) |
 | `tasks.py` / `Makefile` | task runner; the Makefile only calls `tasks.py` |
-| `PLAN.md`, `DECISIONS.md`, `WRITEUP.md`, `DEMO.md` | plan + milestone checklist; decision and tuning log; challenge write-up (its "AI tools used" section is a placeholder for the author); demo video run-of-show |
+| `DECISIONS.md`, `WRITEUP.md`, `DEMO.md` | decision and tuning log; challenge write-up (its "AI tools used" section is a placeholder for the author); demo video run-of-show |
 
 ## Commands
 

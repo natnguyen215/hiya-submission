@@ -37,7 +37,7 @@ One run is less than the 3 runs per script of earlier rounds (see the tuning log
 has no results yet:** the free tier's daily quota ran out during its first script.
 
 Full transcripts and every decision: [`eval_results.md`](eval_results.md). Each tuning step and
-its before-and-after numbers: the "Tuning log" in [`DECISIONS.md`](DECISIONS.md). 114 unit and
+its before-and-after numbers: the "Tuning log" in [`DECISIONS.md`](DECISIONS.md). 66 unit and
 WebSocket tests run without network access.
 
 The eval has two modes. **Lock-step** (the default) analyzes every turn before the next one

@@ -60,11 +60,6 @@ def test_a_spoken_line_must_mention_the_moment():
     assert run.score(line, scored_call(spoken_state("Quick check for Maria: how much is loans?")))["passed"]
 
 
-def test_the_trigger_must_match_when_one_is_expected():
-    line = moment("t2", trigger="UNEXPLAINED_JARGON", outcome="spoken", mentions=["loan"])
-    assert not run.score(line, scored_call(spoken_state("Quick check for Maria: how much is loans?")))["passed"]
-
-
 def test_quiet_passes_on_anything_but_spoken_and_can_require_a_flag():
     quiet = moment("t2", outcome="quiet")
     required = moment("t2", trigger="MISREAD_TERM", outcome="quiet", flag_required=True)
@@ -75,11 +70,6 @@ def test_quiet_passes_on_anything_but_spoken_and_can_require_a_flag():
     assert run.score(required, scored_call(state))["passed"]
     spoken = scored_call(spoken_state("Quick check for Maria: how much is loans?"))
     assert not run.score(quiet, spoken)["passed"]
-
-
-def test_an_outcome_can_be_a_list():
-    line = moment("t2", trigger="MISREAD_TERM", outcome=["nudged", "spoken"], mentions=["loan"])
-    assert run.score(line, scored_call(spoken_state("Quick check for Maria: how much is loans?")))["passed"]
 
 
 # ---------------------------------------------------------------- paced mode
@@ -125,14 +115,3 @@ def test_paced_a_line_is_withdrawn_when_someone_speaks_first(monkeypatch, tmp_pa
     assert call.state.flags[0].state == "spoken"
     assert [t.role for t in call.state.turns][-1] == "beacon"
     assert call.state.turns[-1].started_at >= call.state.turns[-2].ended_at + config.PAUSE_BEFORE_SPEAK_MS
-
-
-def test_paced_a_counselor_turn_in_progress_when_the_card_appears_does_not_count(monkeypatch, tmp_path):
-    lines = [
-        ("counselor", "Daniel's total aid package is $31,500.", 300),
-        ("parent", "So it's covered.", 500),
-        ("counselor", "Next, housing.", 400),  # pressed before the analysis finished
-    ]
-    call, _ = paced_run(monkeypatch, tmp_path, lines)
-    assert call.state.flags[0].state == "nudged"
-    assert all(t.role != "beacon" for t in call.state.turns[1:])

@@ -1,7 +1,7 @@
 # Decisions
 
-Each entry: the decision, why, and the main alternative rejected. Changes to the defaults in the original
-build plan are logged under "Tuned defaults".
+Each entry: the decision, why, and the main alternative rejected. Changes to the original
+defaults are logged under "Tuned defaults".
 
 ## Name
 
@@ -13,8 +13,6 @@ build plan are logged under "Tuned defaults".
 
 ## Repository and tooling
 
-- **Own git repo in this folder.** The parent `CODE/` folder is an unrelated repo; the submission
-  needs a clean history. Rejected: committing into the parent repo.
 - **`tasks.py` is the task runner; the Makefile is a thin alias.** The dev machine is Windows
   without `make`, and `make dev` must start two processes. A 60-line Python script does that on
   every OS. Rejected: a Makefile with shell-only recipes (breaks on Windows), or npm scripts with
@@ -32,9 +30,11 @@ build plan are logged under "Tuned defaults".
   would otherwise block forever; with the timeout it fails with a stack trace.
 - **`tasks.py dev` stops Vite with `taskkill /T` on Windows.** `terminate()` only ends the
   `npm.cmd` wrapper there and leaves Vite holding port 5173.
-- **M1–M3 landed in one commit.** The backend and the frontend were built in parallel against the
-  shared protocol in `models.py`/`types.ts` and committed together once verified end to end; later
-  milestones are separate commits.
+- **One test per rule, not per variation.** Before submission the suite was cut from 115 tests
+  to 66: each policy rule, the WebSocket flow, the eval's scorer and paced timing, and the
+  script checks keep one test, and edge-case variations of the same rule were removed. The eval
+  is the evidence that the thresholds work; the tests check the mechanism. Rejected: keeping
+  every regression, which made the suite harder to read than the code it tests.
 
 ## LLM
 

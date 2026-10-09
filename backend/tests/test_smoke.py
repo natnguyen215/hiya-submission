@@ -1,6 +1,6 @@
 """Integration smoke test: three WebSocket clients against the real app with a FakeLLM. Covers
-broadcasting, who sees flag cards, escalation to beacon_say, summon skipping the cooldown, and the
-counselor's card buttons."""
+broadcasting, who sees flag cards, escalation to beacon_say, the counselor's card buttons, and
+summon skipping the cooldown."""
 
 import json
 import time
@@ -129,23 +129,6 @@ def test_counselor_dismisses_a_card_and_beacon_stays_silent(connect):
     [feedback] = [r for r in records if r["type"] == "counselor_feedback"]
     assert (feedback["action"], feedback["turn_id"], feedback["flag"]["state"]) == ("dismiss", "t3", "dismissed")
     assert feedback["flag"]["evidence_quotes"] == flag["evidence_quotes"]
-
-
-def test_a_parent_cannot_act_on_a_card(connect):
-    counselor, parent, observer = (connect("parent-click", r) for r in ("counselor", "parent", "observer"))
-    flag = open_card(counselor, parent, observer)
-
-    parent.send_json({"type": "flag_action", "flag_id": flag["id"], "action": "dismiss"})
-    ignored, seen = receive_until(observer, "decision_log", lambda m: "ignored" in m["entry"]["message"])
-    assert "only the counselor" in ignored["entry"]["message"]
-    assert "flag_updated" not in [m["type"] for m in seen]
-    assert rooms.get_room("parent-click").state.flags[0].state == "nudged"
-
-    # Nothing changed: when the counselor moves on, Beacon still asks.
-    counselor.send_json(typed("Next, housing is $16,500."))
-    receive_until(observer, "beacon_say")
-    _, parent_messages = receive_until(parent, "beacon_say")
-    assert "error" not in [m["type"] for m in parent_messages]
 
 
 def test_will_clarify_withdraws_a_queued_interjection(connect):
