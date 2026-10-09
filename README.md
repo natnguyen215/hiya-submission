@@ -20,97 +20,64 @@ All people, the school and the award letter are fictional. The amounts are illus
 You need Python 3.11+, Node 20.19+ (or 22.12+) and Chrome.
 
 1. Get a free Gemini API key at [Google AI Studio](https://aistudio.google.com/apikey).
-2. Copy `.env.example` to `.env`, and set `GEMINI_API_KEY` in it.
-3. Install, build and run:
-
-   | macOS / Linux | Windows |
-   |---|---|
-   | `make install` | `python tasks.py install` |
-   | `make build` | `python tasks.py build` |
-   | `make run` | `python tasks.py run` |
-
+2. Copy `.env.example` to `.env` and set `GEMINI_API_KEY`.
+3. Run `make install`, then `make build`, then `make run`. On Windows, use
+   `python tasks.py install`, `python tasks.py build` and `python tasks.py run`.
 4. Open these pages in Chrome:
-   - Observer (start here): <http://localhost:8000/observer?room=demo>
+   - Observer: <http://localhost:8000/observer?room=demo>
    - Counselor: <http://localhost:8000/call?room=demo&role=counselor>
    - Parent: <http://localhost:8000/call?room=demo&role=parent>
 
-Without a key, the app runs, but Beacon cannot analyze the call. The status shows "analyzer
-unavailable".
+Without a key, the app runs, but the status shows "analyzer unavailable" and Beacon cannot
+analyze the call.
 
-Other commands: `make dev` (server with reload, and Vite on <http://localhost:5173>), `make test`
-(unit and WebSocket tests, no network), `make eval` (the offline eval, see "Does it work?").
+Other commands: `make dev` runs the server with reload and Vite on <http://localhost:5173>.
+`make test` runs the unit and WebSocket tests (no network). `make eval` runs the offline eval.
 
 ## Try it
 
-There are two ways to try Beacon. Both use Gemini and the same pipeline.
+You can watch a scripted call, or run a live call yourself.
 
-- **Watch a scripted call:** about 2 minutes, no microphone, nothing to type.
-- **Run a live call yourself:** you play the counselor and the parent, by typing or speaking.
+### Watch a scripted call
 
-### Option 1: Watch a scripted call
+1. Open the observer and the counselor window side by side. Click once in each window: Chrome
+   plays audio only in a page that you clicked.
+2. In the observer, select `demo_short` and click **Play**.
 
-1. Open the observer on the left of the screen and the counselor window on the right. Click once
-   in each window (Chrome plays audio only in a page that you clicked).
-2. In the observer, keep `demo_short` selected and click **Play**.
+The script goes through the same server code as a live call. In about two minutes, the parent
+misreads two terms, hesitates after a piece of jargon, and asks Beacon a question. The counselor
+window shows the private cards. The observer shows the transcript, the Decision Log with the
+reason for each decision, and the Family Recap at the end. Hover over a card in the observer to
+highlight its evidence in the transcript and the award letter.
 
-The observer sends a scripted call to the server, one line at a time. Look for:
+"Text only" is on by default. Turn it off to hear the three voices. `demo_call` is a longer call,
+and `control_call` is a call with nothing to catch.
 
-- **A private card** in the counselor window when the parent misunderstands. It turns green when
-  the counselor clarifies.
-- **Beacon's question** in the transcript when the counselor moves on without clarifying.
-- **A "3.0s pause" badge** before a hesitant "...Okay." Beacon treats the pause as a signal.
-- **Beacon's answer** when the parent asks "Beacon, what's a Parent PLUS loan?"
-- **The Decision Log**, with each decision and its reason. Hover over a card in the observer to
-  highlight its evidence in the transcript and the award letter.
-- **The Family Recap** at the end.
+### Run a live call
 
-"Text only" is ticked by default: a silent run that waits on each line long enough to read it.
-Untick it to hear Alex, Maria and Beacon in different voices. Other scripts: `demo_call` is a
-longer call with more moments, and `control_call` is a clear call where Beacon should stay quiet.
+You play both roles in two windows. You can type each turn or speak it.
 
-### Option 2: Run a live call yourself
+When one person plays both roles, set `NOTABLE_GAP_MS=6000` in `.env` and restart the server.
+Beacon reads a long pause before a reply as confusion, and the time to switch windows makes most
+pauses long. Remove the setting before you run a scripted call, because its planted pause is 3 s.
 
-You play both people. Typing needs no microphone. To speak, Chrome asks for the microphone the
-first time.
+1. Open the counselor and parent windows side by side, and click once in each. Open the observer
+   too if you want to see the Decision Log.
+2. In the counselor window, click **Start call**.
+3. To take a turn, type it and press Enter, or hold the spacebar and speak.
+4. As the counselor, say "Daniel's total aid package is $31,500." As the parent, say "Oh, thank
+   goodness, so it's covered." After a few seconds, a private card appears in the counselor
+   window.
+5. As the counselor, clarify ("To be clear, $14,000 of that is loans you'd pay back.") or move on
+   ("Okay, let's move on to housing."). If you clarify, the card turns green. If you move on,
+   Beacon asks about it at the next pause.
+6. As the parent, say "Beacon, what's a Parent PLUS loan?" A question to Beacon starts with its
+   name and a question word.
+7. Click **End call** to see the Family Recap.
 
-**Before you start (recommended):** add `NOTABLE_GAP_MS=6000` to `.env` and restart the server.
-Beacon treats a long pause before a reply as a sign of confusion, and switching windows takes a
-few seconds. This setting tells Beacon to ignore pauses shorter than 6 seconds. Remove it again for
-the scripted calls, because their planted pause is 3 seconds.
-
-1. Open the counselor window and the parent window side by side. Click once in each. (Open the
-   observer too if you want to see the Decision Log.)
-2. In the counselor window, click **Start call**. Beacon introduces itself.
-3. To take a turn, type in that window's box and press Enter. Or hold **Hold to talk** (or the
-   spacebar), speak, and release.
-4. Try these turns:
-
-   | Window | Type or say | What happens |
-   |---|---|---|
-   | Counselor | Daniel's total aid package is $31,500. | |
-   | Parent | Oh, thank goodness, so it's covered. | After a few seconds, a private card appears in the counselor window. |
-   | Counselor | To be clear, $14,000 of that is loans you'd pay back. | The card turns green. Beacon stays silent. |
-
-   Or, instead of that last turn, move on without clarifying:
-
-   | Window | Type or say | What happens |
-   |---|---|---|
-   | Counselor | Okay, let's move on to housing. | At the next pause, Beacon asks Maria's question aloud. |
-
-5. Ask Beacon directly. As the parent: "Beacon, what's a Parent PLUS loan?" Beacon answers from
-   the award letter and glossary. Start with its name and a question: "Beacon, what…",
-   "Beacon, how…", "Beacon, can you…".
-6. Try the card buttons: **I'll clarify** (Beacon waits one more counselor turn) or **Not an
-   issue** (Beacon never speaks about it).
-7. Click **End call**. The Family Recap appears in every window.
-
-Tips:
-
-- Give Beacon a moment after each turn. Each analysis takes a few seconds. If you start the next
-  turn first, Beacon holds its question and decides again after that turn.
-- Only the counselor window plays Beacon's voice, so one laptop does not play it twice.
-- To start over, click **End call**, then **Start call**. This clears the transcript, so old
-  test turns do not affect the new call.
+Wait a few seconds after each turn. Each analysis takes that long, and Beacon does not talk over
+a new turn. Only the counselor window plays Beacon's voice. To start a clean call, click
+**End call**, then **Start call**.
 
 ## How it works
 
@@ -136,58 +103,39 @@ flowchart LR
   R --> W
 ```
 
-The browser turns each push-to-talk turn into text and sends it to the server, with the pause
-before it.
+The browser converts each turn to text and sends it to the server with the pause before it.
+After each turn that can change something, Gemini gets the transcript, the award letter, the
+glossary and the open cards. It returns JSON: possible misunderstandings with exact quotes, the
+cards that the counselor has cleared up, and the parent's questions.
 
-### Gemini finds; Python decides
+Gemini never decides when Beacon speaks. `policy.py` does, in plain Python. It drops a card if a
+quote is not in the turn that it cites. It keeps one card per issue. It sends minor issues to the
+recap instead of the call. It counts the counselor turns after a parent's question itself.
 
-After each relevant turn, Gemini gets the full transcript (with pauses), the award letter, the
-glossary, and the open cards. It returns structured JSON: possible misunderstandings with exact
-quotes, the cards that the counselor has cleared up, and the parent's questions.
+A card then goes through these steps:
 
-Gemini never makes Beacon speak. `policy.py`, plain deterministic Python, decides what happens:
+1. The counselor sees it privately, with a suggested clarification. The parent sees nothing.
+2. If a later analysis finds that the counselor clarified, Beacon stays silent.
+3. If the counselor starts a new turn without a clarification, Beacon asks one short question at
+   the next pause (0.7 s of quiet). It waits at least 20 s between two questions.
+4. If Beacon cannot ask within 3 turns, the issue goes to the recap.
 
-- **Evidence check.** Each quote must really appear in the turn it cites, and a parent turn must
-  be cited. If not, the card is dropped and the log says why.
-- **No duplicates.** One card per issue, and one card per moment.
-- **Severity.** Minor issues never interrupt. They go to the recap.
-- **Unanswered questions.** Code, not the LLM, counts the counselor turns after a question.
+An unanswered question from the parent gets a card after 2 counselor turns, and Beacon asks after
+the third.
 
-### When Beacon speaks
+On a card, the counselor can click **I'll clarify** (Beacon waits one more turn) or **Not an
+issue** (Beacon never speaks about it, but an unanswered question from the family stays in the
+recap). The
+server logs each click with its card, as examples for tuning later.
 
-1. **Nudge.** A private card tells the counselor what seems misunderstood and suggests a
-   clarification. The parent sees nothing.
-2. **Check.** Each later analysis reports whether the counselor cleared it up. If so, Beacon stays
-   silent.
-3. **Speak.** If the counselor starts a new turn without clarifying, Beacon asks one short
-   question at the next pause (nobody holds push-to-talk, and 0.7 s is quiet). If someone starts
-   talking first, Beacon drops the line and decides again after the next turn. Beacon waits at
-   least 20 s between two questions.
-4. **Recap.** If Beacon cannot ask in time (more than 3 turns later), the issue goes to the recap.
+Beacon answers questions only from the award letter and the glossary, and cites the lines that
+it used. The recap lists grants, loans, work-study, the cost left to pay, deadlines and open
+questions. Code checks each number in the recap against the lines that it cites.
 
-An unanswered parent question gets a card after 2 counselor turns, and Beacon asks after the
-third. All thresholds are in `backend/app/config.py`, and an environment variable with the same
-name overrides each one.
+All thresholds are in `backend/app/config.py`. An environment variable with the same name
+overrides each one.
 
-### The counselor stays in control
-
-Each card has two buttons that only the counselor sees:
-
-- **I'll clarify:** Beacon waits one more counselor turn before it can ask.
-- **Not an issue:** Beacon never speaks about it. An unanswered question from the family still
-  goes to the recap.
-
-Each click is logged with the card, as labeled examples for tuning Beacon later.
-
-### Answers and the recap
-
-"Beacon, what's…?" starts a question to Beacon. It answers only from the award letter and the
-glossary, cites the lines it used, and says so when the answer is not in the documents. After the
-call, Gemini writes the Family Recap: free money, loans, work-study, what is left to pay,
-deadlines and open questions. Code checks that each number in the recap appears in the lines it
-cites.
-
-### Where things are
+### Code map
 
 | File | What it does |
 |---|---|
@@ -207,9 +155,9 @@ cites.
 
 ## Does it work?
 
-The eval replays scripted calls through the real analyzer and decision code, and checks each
-planted moment: did Beacon flag it, stay quiet, or ask aloud, as expected? It ran once per script
-with `gemini-3.5-flash-lite` on 2026-10-09, with 0 errors.
+The eval sends scripted calls through the real analyzer and decision code. For each planted
+moment, it checks what Beacon did: a card, silence, or a question aloud. The last run used
+`gemini-3.5-flash-lite` on 2026-10-09, one run per script, with 0 errors.
 
 | Script | What it tests | Result |
 |---|---|---|
@@ -221,11 +169,9 @@ with `gemini-3.5-flash-lite` on 2026-10-09, with 0 errors.
 | `live_patterns` | a relapse after a correction, a reply split over three turns, two misreadings in a row, "never mind" | 7/7 |
 | `summon_checks` | 10 questions to Beacon, 2 of them not answered by the documents | 10/10 |
 
-`demo_short`, the shortened call for the demo video, was added after this run. Full transcripts
-and every decision are in [`eval_results.md`](eval_results.md).
-
-The eval analyzes each turn before the next one arrives. So it measures what Beacon finds and
-decides, not live timing.
+`demo_short`, the short call for the demo video, came after this run.
+[`eval_results.md`](eval_results.md) has the full transcripts and decisions. The eval analyzes
+each turn before the next turn arrives, so it does not measure live timing.
 
 ## Next steps
 
