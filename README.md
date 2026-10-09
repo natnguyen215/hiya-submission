@@ -42,36 +42,75 @@ Other commands: `make dev` (server with reload, and Vite on <http://localhost:51
 
 ## Try it
 
-### Watch a scripted call (easiest)
+There are two ways to try Beacon. Both use Gemini and the same pipeline.
 
-1. Open the observer, and the counselor window next to it.
-2. Keep `demo_short` selected and click **Play**.
+- **Watch a scripted call:** about 2 minutes, no microphone, nothing to type.
+- **Run a live call yourself:** you play the counselor and the parent, by typing or speaking.
 
-The observer sends a scripted call to the server, one line at a time, through the same pipeline
-as a live call. Watch the private cards appear in the counselor window, Beacon's questions in the
-transcript, and every decision in the Decision Log. Hover over a card in the observer to highlight
-its evidence in the transcript and the award letter. At the end, the Family Recap appears.
+### Option 1: Watch a scripted call
+
+1. Open the observer on the left of the screen and the counselor window on the right. Click once
+   in each window (Chrome plays audio only in a page that you clicked).
+2. In the observer, keep `demo_short` selected and click **Play**.
+
+The observer sends a scripted call to the server, one line at a time. Look for:
+
+- **A private card** in the counselor window when the parent misunderstands. It turns green when
+  the counselor clarifies.
+- **Beacon's question** in the transcript when the counselor moves on without clarifying.
+- **A "3.0s pause" badge** before a hesitant "...Okay." Beacon treats the pause as a signal.
+- **Beacon's answer** when the parent asks "Beacon, what's a Parent PLUS loan?"
+- **The Decision Log**, with each decision and its reason. Hover over a card in the observer to
+  highlight its evidence in the transcript and the award letter.
+- **The Family Recap** at the end.
 
 "Text only" is ticked by default: a silent run that waits on each line long enough to read it.
-Untick it to hear Alex, Maria and Beacon in different voices. `demo_call` is a longer call with
-more moments, and `control_call` is a clear call where Beacon should stay quiet.
+Untick it to hear Alex, Maria and Beacon in different voices. Other scripts: `demo_call` is a
+longer call with more moments, and `control_call` is a clear call where Beacon should stay quiet.
 
-### Run a live call yourself
+### Option 2: Run a live call yourself
 
-1. Open the counselor and parent windows side by side, and click once in each (Chrome plays
-   speech only in a page that you clicked).
+You play both people. Typing needs no microphone. To speak, Chrome asks for the microphone the
+first time.
+
+**Before you start (recommended):** add `NOTABLE_GAP_MS=6000` to `.env` and restart the server.
+Beacon treats a long pause before a reply as a sign of confusion, and switching windows takes a
+few seconds. This setting tells Beacon to ignore pauses shorter than 6 seconds. Remove it again for
+the scripted calls, because their planted pause is 3 seconds.
+
+1. Open the counselor window and the parent window side by side. Click once in each. (Open the
+   observer too if you want to see the Decision Log.)
 2. In the counselor window, click **Start call**. Beacon introduces itself.
-3. To speak a turn, hold **Hold to talk** (or the spacebar), speak, and release. Or type the turn
-   and press Enter.
-4. As the counselor, say "Daniel's total aid package is $31,500." As the parent, say "Oh, thank
-   goodness, so it's covered." A card appears in the counselor window.
-5. As the counselor, say something unrelated. Beacon asks about the card at the next pause.
-6. As the parent, say "Beacon, what's a Parent PLUS loan?"
-7. Click **End call** to get the Family Recap.
+3. To take a turn, type in that window's box and press Enter. Or hold **Hold to talk** (or the
+   spacebar), speak, and release.
+4. Try these turns:
 
-Only the counselor window plays Beacon's voice, so one laptop does not play it twice. If you play
-both roles, the time you take to change windows looks like hesitation to Beacon. Add
-`NOTABLE_GAP_MS=6000` to `.env` to allow for it.
+   | Window | Type or say | What happens |
+   |---|---|---|
+   | Counselor | Daniel's total aid package is $31,500. | |
+   | Parent | Oh, thank goodness, so it's covered. | After a few seconds, a private card appears in the counselor window. |
+   | Counselor | To be clear, $14,000 of that is loans you'd pay back. | The card turns green. Beacon stays silent. |
+
+   Or, instead of that last turn, move on without clarifying:
+
+   | Window | Type or say | What happens |
+   |---|---|---|
+   | Counselor | Okay, let's move on to housing. | At the next pause, Beacon asks Maria's question aloud. |
+
+5. Ask Beacon directly. As the parent: "Beacon, what's a Parent PLUS loan?" Beacon answers from
+   the award letter and glossary. Start with its name and a question: "Beacon, what…",
+   "Beacon, how…", "Beacon, can you…".
+6. Try the card buttons: **I'll clarify** (Beacon waits one more counselor turn) or **Not an
+   issue** (Beacon never speaks about it).
+7. Click **End call**. The Family Recap appears in every window.
+
+Tips:
+
+- Give Beacon a moment after each turn. Each analysis takes a few seconds. If you start the next
+  turn first, Beacon holds its question and decides again after that turn.
+- Only the counselor window plays Beacon's voice, so one laptop does not play it twice.
+- To start over, click **End call**, then **Start call**. This clears the transcript, so old
+  test turns do not affect the new call.
 
 ## How it works
 
