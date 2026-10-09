@@ -79,8 +79,7 @@ PARENT_NAME = _setting("PARENT_NAME", "Maria")
 # The opening line says that an AI listens, and how to ask it: the name first, then a question.
 OPENING_LINE = _setting(
     "OPENING_LINE",
-    "Hi, I'm Beacon, an AI assistant listening to help keep things clear. "
-    "Ask me about anything on the award letter: just start with my name.",
+    "Hi, I'm Beacon, an AI assistant. To ask me something, just start with my name.",
 )
 SUMMON_FAILED_LINE = _setting(
     "SUMMON_FAILED_LINE", "Sorry, I couldn't look that up just now. {counselor}, could you answer that?"

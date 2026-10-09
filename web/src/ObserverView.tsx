@@ -166,10 +166,12 @@ export function ObserverView({ room }: { room: string }) {
 
         <section className="panel area-flags">
           <h2>Flags ({state.flags.length})</h2>
-          <div className="scroll">
+          {/* The hover ends when the pointer leaves the list, not a card. If not, the gap between
+              two cards turns the highlight off and on again, and the lists jump. */}
+          <div className="scroll" onMouseLeave={() => setHoveredFlagId(null)}>
             {state.flags.length === 0 && <p className="empty">No flags yet.</p>}
             {[...state.flags].reverse().map((flag) => (
-              <div key={flag.id} onMouseEnter={() => setHoveredFlagId(flag.id)} onMouseLeave={() => setHoveredFlagId(null)}>
+              <div key={flag.id} onMouseEnter={() => setHoveredFlagId(flag.id)}>
                 <FlagCard flag={flag} detailed />
               </div>
             ))}

@@ -8,12 +8,15 @@ export function speakerName(role: Role, settings: Settings): string {
   return "Beacon";
 }
 
-/** Keeps a scrolling list at its newest entry when `count` changes. */
-export function useScrollToEnd<T extends HTMLElement>(count: number) {
+/**
+ * Keeps a scrolling list at its newest entry when `count` changes.
+ * When `enabled` is false, the list stays where it is. When it becomes true again, the list goes to the end.
+ */
+export function useScrollToEnd<T extends HTMLElement>(count: number, enabled = true) {
   const ref = useRef<T>(null);
   useEffect(() => {
     const element = ref.current;
-    if (!element) return;
+    if (!element || !enabled) return;
     const scrollToEnd = () => element.scrollTo({ top: element.scrollHeight });
     scrollToEnd();
     // A banner below the list (Beacon speaking, the recap) makes the list smaller. Then the newest
@@ -21,7 +24,7 @@ export function useScrollToEnd<T extends HTMLElement>(count: number) {
     const observer = new ResizeObserver(scrollToEnd);
     observer.observe(element);
     return () => observer.disconnect();
-  }, [count]);
+  }, [count, enabled]);
   return ref;
 }
 
@@ -33,7 +36,8 @@ interface TranscriptProps {
 }
 
 export function Transcript({ turns, settings, detailed = false, highlighted }: TranscriptProps) {
-  const ref = useScrollToEnd<HTMLOListElement>(turns.length);
+  // While the observer highlights evidence, a new turn must not scroll the evidence out of view.
+  const ref = useScrollToEnd<HTMLOListElement>(turns.length, !highlighted?.size);
   return (
     <ol className="transcript" ref={ref}>
       {turns.length === 0 && <li className="empty">No one has spoken yet.</li>}
