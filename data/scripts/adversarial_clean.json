@@ -108,6 +108,18 @@
     "pause_before_ms": 400
   },
   {
+    "id": "a18a",
+    "role": "counselor",
+    "text": "And for the tax transcripts, you'll get an email with the link.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "a18b",
+    "role": "parent",
+    "text": "Okay.",
+    "pause_before_ms": 2600
+  },
+  {
     "id": "a19",
     "role": "counselor",
     "text": "The net price is $23,000, that's the full $38,000 cost minus the $15,000 in grants.",

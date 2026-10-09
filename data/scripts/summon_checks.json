@@ -13,7 +13,8 @@
     "expect": {
       "trigger": "SUMMON",
       "outcome": "answered",
-      "note": "G7/G8: interest while in school."
+      "note": "G7/G8: interest while in school.",
+      "refs": ["G7", "G8"]
     }
   },
   {
@@ -24,7 +25,8 @@
     "expect": {
       "trigger": "SUMMON",
       "outcome": "answered",
-      "note": "L11/G6: $6,000, not repaid."
+      "note": "L11/G6: $6,000, not repaid.",
+      "refs": ["L11", "G6"]
     }
   },
   {
@@ -35,7 +37,8 @@
     "expect": {
       "trigger": "SUMMON",
       "outcome": "answered",
-      "note": "G12/L22: 2.0 GPA and 67% of attempted credits."
+      "note": "G12/L22: 2.0 GPA and 67% of attempted credits.",
+      "refs": ["G12", "L22"]
     }
   },
   {
@@ -46,7 +49,8 @@
     "expect": {
       "trigger": "SUMMON",
       "outcome": "answered",
-      "note": "L21: July 15."
+      "note": "L21: July 15.",
+      "refs": ["L21"]
     }
   },
   {
@@ -57,7 +61,8 @@
     "expect": {
       "trigger": "SUMMON",
       "outcome": "answered",
-      "note": "G10/L14: paid as paychecks, not credited upfront."
+      "note": "G10/L14: paid as paychecks, not credited upfront.",
+      "refs": ["G10", "L14"]
     }
   },
   {
@@ -68,7 +73,8 @@
     "expect": {
       "trigger": "SUMMON",
       "outcome": "answered",
-      "note": "G2/G1: an eligibility index, not what the family pays."
+      "note": "G2/G1: an eligibility index, not what the family pays.",
+      "refs": ["G2", "G1"]
     }
   },
   {
@@ -79,7 +85,8 @@
     "expect": {
       "trigger": "SUMMON",
       "outcome": "answered",
-      "note": "G13/L19: $23,000, cost minus grants."
+      "note": "G13/L19: $23,000, cost minus grants.",
+      "refs": ["G13", "L19"]
     }
   },
   {
@@ -90,7 +97,8 @@
     "expect": {
       "trigger": "SUMMON",
       "outcome": "answered",
-      "note": "G3/L3: $38,000 estimated full yearly cost."
+      "note": "G3/L3: $38,000 estimated full yearly cost.",
+      "refs": ["G3", "L3"]
     }
   },
   {

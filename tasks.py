@@ -1,6 +1,6 @@
 """Cross-platform task runner (Windows has no make; the Makefile just calls this).
 
-Usage: python tasks.py install | dev | build | run | test | eval [--cache] [--script NAME]"""
+Usage: python tasks.py install | dev | build | run | test | eval [--cache] [--script NAME] [--paced]"""
 
 import os
 import subprocess

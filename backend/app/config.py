@@ -46,7 +46,10 @@ ESCALATE_AFTER_COUNSELOR_TURNS = _setting("ESCALATE_AFTER_COUNSELOR_TURNS", 1)
 STALE_AFTER_TURNS = _setting("STALE_AFTER_TURNS", 3)
 # The counselor's "I'll clarify" buys this many extra counselor turns before Beacon may speak.
 CLARIFY_GRACE_COUNSELOR_TURNS = _setting("CLARIFY_GRACE_COUNSELOR_TURNS", 1)
-UNANSWERED_AFTER_COUNSELOR_TURNS = _setting("UNANSWERED_AFTER_COUNSELOR_TURNS", 1)
+# Two, not one: the analyzer sometimes credits an answer one analysis late, and a card raised after
+# the first counselor turn would be a false alarm one counselor press away from being said aloud.
+# With ESCALATE_AFTER_COUNSELOR_TURNS, Beacon asks after the third counselor turn without an answer.
+UNANSWERED_AFTER_COUNSELOR_TURNS = _setting("UNANSWERED_AFTER_COUNSELOR_TURNS", 2)
 SPEAK_COOLDOWN_SECONDS = _setting("SPEAK_COOLDOWN_SECONDS", 20.0)
 PAUSE_BEFORE_SPEAK_MS = _setting("PAUSE_BEFORE_SPEAK_MS", 700)
 # If no tab reports that Beacon finished speaking, assume it did after this long per word.
@@ -59,6 +62,9 @@ QUOTE_MIN_SIMILARITY = _setting("QUOTE_MIN_SIMILARITY", 0.85)
 
 # Signals and simulation
 NOTABLE_GAP_MS = _setting("NOTABLE_GAP_MS", 2000)
+# A voice turn's gap runs to the push-to-talk press, which includes the time to reach for the key.
+# Subtracted from voice gaps only; typed and script turns are unchanged.
+PTT_REACTION_MS = _setting("PTT_REACTION_MS", 600)
 SIM_MAX_WAIT_FOR_ANALYSIS_SECONDS = _setting("SIM_MAX_WAIT_FOR_ANALYSIS_SECONDS", 12.0)
 
 # Wake word: compare 1-3 word windows without spaces, using only the canonical spelling.

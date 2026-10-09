@@ -1,0 +1,257 @@
+[
+  {
+    "id": "l01",
+    "role": "counselor",
+    "text": "Hi Maria, it's Alex at Westbrook State again. Let's finish the loan part of Daniel's letter.",
+    "pause_before_ms": 300
+  },
+  {
+    "id": "l02",
+    "role": "parent",
+    "text": "Sure, I've got the letter open.",
+    "pause_before_ms": 600
+  },
+  {
+    "id": "l03",
+    "role": "counselor",
+    "text": "Daniel's Federal Direct Unsubsidized Loan is $2,000.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "l04",
+    "role": "parent",
+    "text": "Oh good, so that one won't grow at all while he's still in school.",
+    "pause_before_ms": 600,
+    "expect": {
+      "trigger": "MISREAD_TERM",
+      "outcome": "resolved",
+      "note": "(i) Maria thinks the unsubsidized loan doesn't accrue interest during school; it does. Alex corrects it in his next turn after the private card."
+    }
+  },
+  {
+    "id": "l05",
+    "role": "counselor",
+    "text": "Actually, it's the other way around. Interest on the unsubsidized loan starts adding up right away, even during school. Only the subsidized one has its interest covered while he's enrolled.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "l06",
+    "role": "counselor",
+    "text": "So do you want to keep both loans, or only the subsidized one?",
+    "pause_before_ms": 400
+  },
+  {
+    "id": "l07",
+    "role": "parent",
+    "text": "Both, I think. Neither of them grows until he graduates, so there's no hurry.",
+    "pause_before_ms": 600,
+    "expect": {
+      "trigger": "MISREAD_TERM",
+      "outcome": ["nudged", "spoken"],
+      "mentions": ["interest", "unsubsidized", "grow"],
+      "note": "(i) Two turns after Alex's correction, Maria falls back into the same belief. It must become a second nudge (the model may reuse the resolved flag's key), not 'none'. Alex moves on, so Beacon may ask."
+    }
+  },
+  {
+    "id": "l08",
+    "role": "counselor",
+    "text": "Okay. Next on the letter is the work-study award.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "l09",
+    "role": "counselor",
+    "text": "Thanks for flagging that. Maria, the unsubsidized loan does grow while Daniel is in school, because its interest starts as soon as the money goes out.",
+    "pause_before_ms": 1200
+  },
+  {
+    "id": "l10",
+    "role": "parent",
+    "text": "Oh, okay. So only the subsidized one waits until after school. Got it now.",
+    "pause_before_ms": 600
+  },
+  {
+    "id": "l11",
+    "role": "counselor",
+    "text": "Right. So, Daniel's Federal Work-Study award is $2,500 for the year.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "l12",
+    "role": "parent",
+    "text": "That's great, so that $2,500 comes off the tuition bill right away.",
+    "pause_before_ms": 600,
+    "expect": {
+      "trigger": "MISREAD_TERM",
+      "outcome": "spoken",
+      "mentions": ["bill", "paycheck", "upfront", "up front", "tuition"],
+      "note": "(ii) Maria thinks work-study is credited to the bill; it is paid as paychecks. She then adds three short push-to-talk presses, and Alex's next turn moves on. Counted from the card that would be stale; counted from Alex's first chance, Beacon asks."
+    }
+  },
+  {
+    "id": "l13",
+    "role": "parent",
+    "text": "Oh,",
+    "pause_before_ms": 400
+  },
+  {
+    "id": "l14",
+    "role": "parent",
+    "text": "that helps a lot,",
+    "pause_before_ms": 300
+  },
+  {
+    "id": "l15",
+    "role": "parent",
+    "text": "honestly.",
+    "pause_before_ms": 300
+  },
+  {
+    "id": "l16",
+    "role": "counselor",
+    "text": "Great. Moving on, the Westbrook Grant is $9,000 for the year.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "l17",
+    "role": "counselor",
+    "text": "Good question, thank you. Maria, work-study isn't taken off the bill. Daniel earns it as paychecks from a campus job, for the hours he works.",
+    "pause_before_ms": 1200
+  },
+  {
+    "id": "l18",
+    "role": "parent",
+    "text": "Oh, so it's his paycheck as he works. We still pay the bill ourselves.",
+    "pause_before_ms": 600
+  },
+  {
+    "id": "l19",
+    "role": "counselor",
+    "text": "Exactly. To keep the Westbrook Grant, Daniel needs Satisfactory Academic Progress: at least a 2.0 GPA and finishing 67 percent of the credits he attempts, every term.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "l20",
+    "role": "parent",
+    "text": "Okay, so a C average, and he has to finish most of his classes each term.",
+    "pause_before_ms": 600
+  },
+  {
+    "id": "l21",
+    "role": "counselor",
+    "text": "That's it. Now, the Parent PLUS loan on the letter is $8,500, offered to you. And the net price is $23,000.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "l22",
+    "role": "parent",
+    "text": "Oh nice, so Daniel pays that loan back once he's working.",
+    "pause_before_ms": 600,
+    "expect": {
+      "trigger": "MISREAD_TERM",
+      "outcome": "spoken",
+      "mentions": ["plus"],
+      "note": "(iii) First of two misreads back to back: the Parent PLUS loan is the parent's to repay. Alex moves on, so Beacon asks about it; that starts the 20-second cooldown."
+    }
+  },
+  {
+    "id": "l23",
+    "role": "parent",
+    "text": "And the $23,000 is what's left after the loans come off.",
+    "pause_before_ms": 400,
+    "expect": {
+      "trigger": "MISREAD_TERM",
+      "outcome": "quiet",
+      "flag_required": true,
+      "note": "(iii) Second misread, in the very next press: net price subtracts only grants. Both are due at Alex's next turn; Beacon asks about the first, and the cooldown then holds this one until Alex clarifies it. It must still be flagged (not 'none' or 'dropped'), and never spoken."
+    }
+  },
+  {
+    "id": "l24",
+    "role": "counselor",
+    "text": "Last thing on the money: accept each award in the student portal.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "l25",
+    "role": "counselor",
+    "text": "Right, that loan is yours to repay, Maria.",
+    "pause_before_ms": 1000
+  },
+  {
+    "id": "l26",
+    "role": "counselor",
+    "text": "And one correction: the net price only takes off the grants. The loans still count toward it.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "l27",
+    "role": "parent",
+    "text": "Oh, I see. So the $23,000 is before any loans.",
+    "pause_before_ms": 600
+  },
+  {
+    "id": "l28",
+    "role": "counselor",
+    "text": "Exactly. Do you have any other questions about the letter?",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "l29",
+    "role": "parent",
+    "text": "Yes, when do the verification papers have to be in?",
+    "pause_before_ms": 600,
+    "expect": {
+      "trigger": null,
+      "outcome": "none",
+      "note": "(iv) Maria asks a question, then answers it herself from the letter. No unanswered-question flag, and Beacon never asks it for her."
+    }
+  },
+  {
+    "id": "l30",
+    "role": "parent",
+    "text": "Oh never mind, I see it on the letter. July 15.",
+    "pause_before_ms": 1500
+  },
+  {
+    "id": "l31",
+    "role": "counselor",
+    "text": "Perfect. The transcripts and the worksheet both go to our office.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "l32",
+    "role": "counselor",
+    "text": "We'll review them within a couple of weeks.",
+    "pause_before_ms": 400
+  },
+  {
+    "id": "l33",
+    "role": "counselor",
+    "text": "You'll get an email with the link.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "l34",
+    "role": "parent",
+    "text": "Okay.",
+    "pause_before_ms": 2600,
+    "expect": {
+      "trigger": null,
+      "outcome": "none",
+      "note": "(v) A 2.6-second pause and a plain 'okay' after a simple logistics sentence. Nothing to flag."
+    }
+  },
+  {
+    "id": "l35",
+    "role": "counselor",
+    "text": "That's everything for today. Congratulations again to Daniel.",
+    "pause_before_ms": 500
+  },
+  {
+    "id": "l36",
+    "role": "parent",
+    "text": "Thank you, Alex. Bye now.",
+    "pause_before_ms": 600
+  }
+]

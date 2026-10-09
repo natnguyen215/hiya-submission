@@ -31,11 +31,13 @@ export interface Flag {
   evidence_quotes: string[];
   counselor_card: string;
   suggested_clarification: string;
-  spoken_line: string;
+  spoken_line: string; // addressed to the counselor
+  family_question: string; // the same question for the family to ask the aid office later (recap)
   doc_refs: string[];
   state: FlagState;
   created_at_turn: string;
   ladder_start_turn: string; // the ladder counts turns after this one; "I'll clarify" moves it
+  ladder_start_ms: number; // epoch ms of the same moment; counselor turns that started earlier don't count
   grace_turns: number; // extra counselor turns before Beacon may speak
   counselor_action: "will_clarify" | "dismissed" | null; // the counselor's last click on the card
   history: FlagEvent[];

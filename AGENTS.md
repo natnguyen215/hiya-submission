@@ -33,6 +33,7 @@ Run commands from the project root with Python 3.11+ and Node 20.19+ (20.x) or
 - `python tasks.py eval`: evaluates every script in `eval/run.py`'s `SCRIPTS` against Gemini (about 100 requests; the free tier allows 500 a day).
 - `python tasks.py eval --cache`: stores/reuses valid responses in `.cache/`.
 - `python tasks.py eval --script demo_call --runs 3`: one script, three times.
+- `python tasks.py eval --paced`: the paced mode (turns arrive on the clock while analyses run, as in a live call); it rewrites only its half of `eval_results.md`.
 - `eval/browser_check.js`: optional Playwright check of the UI against a running server (see its header).
 
 The task runner uses `.venv` automatically; activation is optional. On Windows,

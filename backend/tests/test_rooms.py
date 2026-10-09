@@ -6,7 +6,8 @@ import json
 from helpers import make_state, new_flag, output
 
 from backend.app import config, policy, rooms
-from backend.app.models import PttStart, PttStop, SimTurn, StatusMessage
+from backend.app.llm import FakeLLM
+from backend.app.models import PttStart, PttStop, SimTurn, StatusMessage, TurnMessage
 
 
 class Socket:
@@ -95,5 +96,27 @@ def test_call_tabs_cannot_submit_script_turns_as_another_persona():
             message = SimTurn(type="sim_turn", role="parent", text="Spoofed turn", gap_ms=0)
             await rooms.handle(room, Socket(), role, message)
         assert room.state.turns == []
+
+    asyncio.run(run())
+
+
+def test_voice_gaps_leave_out_the_time_to_press_the_key(monkeypatch):
+    monkeypatch.setattr(rooms, "llm", FakeLLM(lambda prompt, schema: output()))
+    monkeypatch.setattr(config, "PTT_REACTION_MS", 600)
+
+    async def run():
+        room = rooms.Room(name="gaps")
+        room.state.status.call_status = "live"
+        sent = [
+            ("counselor", 1_000, 2_000, "typed"),
+            ("parent", 4_000, 5_000, "voice"),  # 2000 ms after t1, 600 of them reaching for the key
+            ("counselor", 5_300, 6_000, "voice"),  # 300 ms: never below zero
+            ("parent", 9_000, 9_500, "typed"),  # typed turns keep the whole gap
+        ]
+        for role, started, ended, source in sent:
+            message = TurnMessage(type="turn", text="Hello.", started_at=started, ended_at=ended, source=source)
+            await rooms.handle(room, Socket(), role, message)
+        assert [t.gap_ms for t in room.state.turns] == [None, 1400, 0, 3000]
+        rooms._cancel_tasks(room)
 
     asyncio.run(run())

@@ -114,9 +114,11 @@ def _create_flag(state: RoomState, fields: dict, flag_state: FlagState, reason: 
         state=flag_state,
         # The card appears now, after every turn so far, including any that arrived during the LLM
         # call. The ladder counts from here, so a counselor turn spoken before the card existed
-        # never counts as "saw the card and didn't clarify".
+        # never counts as "saw the card and didn't clarify". ladder_start_ms does the same for a
+        # turn that was already in progress (push-to-talk held) when the card appeared.
         created_at_turn=state.turns[-1].id,
         ladder_start_turn=state.turns[-1].id,
+        ladder_start_ms=now_ms,
         history=[FlagEvent(state=flag_state, reason=reason, turn_id=turn_id)],
         **fields,
     )
@@ -125,10 +127,15 @@ def _create_flag(state: RoomState, fields: dict, flag_state: FlagState, reason: 
     return [SendCard(flag_id=flag.id), _log(now_ms, "flag", message, flag.id, turn_id)]
 
 
+# States in which a flag owns its issue_key. "resolved" frees it: a parent who later relapses into
+# the corrected belief is a new moment, and the model may reuse the key for it. "dropped" frees it
+# because its evidence failed. A dismissed flag keeps blocking it, so Beacon doesn't raise again
+# what the counselor already called a non-issue.
+KEY_BLOCKING_STATES = ("nudged", "spoken", "recap", "dismissed")
+
+
 def _active_flag_with_key(state: RoomState, issue_key: str) -> Flag | None:
-    # Only "dropped" frees a key. A dismissed flag keeps blocking it, so Beacon doesn't raise
-    # again what the counselor already called a non-issue.
-    return next((f for f in state.flags if f.issue_key == issue_key and f.state != "dropped"), None)
+    return next((f for f in state.flags if f.issue_key == issue_key and f.state in KEY_BLOCKING_STATES), None)
 
 
 def _flag_for_same_moment(state: RoomState, trigger: str, turn_ids: list[str], seen: list[Turn]) -> Flag | None:
@@ -216,13 +223,18 @@ def _apply_questions(state: RoomState, out: AnalyzerOutput, seen: list[Turn], no
         answer_turn = by_id.get(answered.answered_turn_id)
         if question is None or question.answered_turn_id or answer_turn is None:
             continue
-        if answer_turn.role != "counselor" or order[answer_turn.id] < order[question.asked_turn_id]:
+        if order[answer_turn.id] <= order[question.asked_turn_id] or answer_turn.role == "beacon":
             continue
+        # A later parent turn closes the question too: "oh never mind, I see it" or the parent
+        # answering it themselves. Beacon must not then ask it on their behalf.
+        withdrawn = answer_turn.role == "parent"
         question.answered_turn_id = answer_turn.id
-        actions.append(_log(now_ms, "question", f"{answer_turn.id} answered the question from {question.asked_turn_id}", turn_id=answer_turn.id))
+        verb = "withdrew the question from" if withdrawn else "answered the question from"
+        actions.append(_log(now_ms, "question", f"{answer_turn.id} {verb} {question.asked_turn_id}", turn_id=answer_turn.id))
         flag = _active_flag_with_key(state, f"unanswered_{question.asked_turn_id}")
         if flag and flag.state == "nudged":
-            actions += _transition(flag, "resolved", "the counselor answered the question", latest, now_ms)
+            reason = "the parent withdrew the question" if withdrawn else "the counselor answered the question"
+            actions += _transition(flag, "resolved", reason, latest, now_ms)
     return actions
 
 
@@ -231,7 +243,9 @@ def _raise_unanswered(state: RoomState, seen: list[Turn], now_ms: int) -> list[A
     latest = seen[-1].id
     for question in state.parent_questions:
         key = f"unanswered_{question.asked_turn_id}"
-        if question.answered_turn_id or _active_flag_with_key(state, key):
+        # One flag per question, whatever happened to it: the analyzer may list an unanswered-
+        # question flag as resolved without reporting the answer, and that must not re-raise it.
+        if question.answered_turn_id or any(f.issue_key == key for f in state.flags):
             continue
         waited = _turns_after(seen, question.asked_turn_id, ("counselor",))
         if waited < config.UNANSWERED_AFTER_COUNSELOR_TURNS:
@@ -246,6 +260,7 @@ def _raise_unanswered(state: RoomState, seen: list[Turn], now_ms: int) -> list[A
             "counselor_card": config.UNANSWERED_CARD.format(**names),
             "suggested_clarification": config.UNANSWERED_CLARIFICATION.format(**names),
             "spoken_line": config.UNANSWERED_LINE.format(**names),
+            "family_question": question.text,  # the parent's own words, as UNANSWERED_LINE quotes them
             "doc_refs": [],
         }
         age = _turns_after(seen, question.asked_turn_id, ("counselor", "parent"))
@@ -265,20 +280,33 @@ def _turns_before_speaking(flag: Flag) -> int:
     return config.ESCALATE_AFTER_COUNSELOR_TURNS + flag.grace_turns
 
 
+def _counselor_turns_since_card(flag: Flag, seen: list[Turn]) -> list[Turn]:
+    """Counselor turns that had a chance to act on the card: after ladder_start_turn in the
+    transcript, and started once the card was showing (or after "I'll clarify"). A turn already in
+    progress when the card appeared was not a decision to move on."""
+    ids = [t.id for t in seen]
+    if flag.ladder_start_turn not in ids:
+        return []
+    later = seen[ids.index(flag.ladder_start_turn) + 1 :]
+    return [t for t in later if t.role == "counselor" and t.started_at >= flag.ladder_start_ms]
+
+
 def _run_ladder(state: RoomState, seen: list[Turn], unseen_human_turns: bool, now_ms: int) -> list[Action]:
     actions: list[Action] = []
     latest = seen[-1].id
     due: list[Flag] = []
     for flag in [f for f in state.flags if f.state == "nudged"]:
-        # Both counts start at ladder_start_turn: when the card appeared, or the counselor's "I'll clarify".
-        counselor_turns = _turns_after(seen, flag.ladder_start_turn, ("counselor",))
-        if counselor_turns < _turns_before_speaking(flag):
-            continue
-        human_turns = _turns_after(seen, flag.ladder_start_turn, ("counselor", "parent"))
+        counselor_turns = _counselor_turns_since_card(flag, seen)
+        if not counselor_turns:
+            continue  # the counselor hasn't had a turn since the card: neither due nor stale
+        # Staleness counts from the counselor's first chance, not from the card: a parent who
+        # splits a reply over several push-to-talk presses must not use up the counselor's turns.
+        first_chance = counselor_turns[0].id
+        human_turns = _turns_after(seen, first_chance, ("counselor", "parent"))
         if human_turns > config.STALE_AFTER_TURNS:
-            reason = f"stale: {human_turns} turns since {flag.ladder_start_turn}, too late to raise aloud"
+            reason = f"stale: {human_turns} turns since {first_chance}, the counselor's first chance; too late to raise aloud"
             actions += _transition(flag, "recap", reason, latest, now_ms)
-        else:
+        elif len(counselor_turns) >= _turns_before_speaking(flag):
             due.append(flag)
     if not due:
         return actions
@@ -329,8 +357,16 @@ def after_analysis(state: RoomState, out: AnalyzerOutput, turn_count: int, now_m
     actions: list[Action] = []
     for flag_id in out.resolved_flag_ids:
         flag = next((f for f in state.flags if f.id == flag_id), None)
-        if flag and flag.state == "nudged":
-            actions += _transition(flag, "resolved", "the counselor clarified it", latest, now_ms)
+        if not flag or flag.state != "nudged":
+            continue
+        # Only the counselor can clarify, so a counselor turn must follow the evidence. Seen with
+        # Gemini: a flag listed as resolved after the parent's next short press ("Oh,").
+        newest = max((t for t in seen if t.id in flag.evidence_turn_ids), key=seen.index, default=None)
+        if newest is None or not _turns_after(seen, newest.id, ("counselor",)):
+            message = f"ignored resolution of {flag.id}: no counselor turn after its evidence"
+            actions.append(_log(now_ms, "ladder", message, flag.id, latest))
+            continue
+        actions += _transition(flag, "resolved", "the counselor clarified it", latest, now_ms)
     actions += _add_new_flags(state, out, seen, now_ms)
     actions += _apply_questions(state, out, seen, now_ms)
     actions += _raise_unanswered(state, seen, now_ms)
@@ -369,6 +405,7 @@ def counselor_action(state: RoomState, flag_id: str, action: CardAction, latest_
         return ignored("the counselor already said they will clarify")
     flag.counselor_action = "will_clarify"
     flag.ladder_start_turn = latest_turn_id
+    flag.ladder_start_ms = now_ms
     flag.grace_turns = config.CLARIFY_GRACE_COUNSELOR_TURNS
     flag.history.append(FlagEvent(state="nudged", reason="counselor: will clarify", turn_id=latest_turn_id))
     message = f"{flag.id} counselor will clarify; waiting {_turns_before_speaking(flag)} counselor turn(s) before speaking"

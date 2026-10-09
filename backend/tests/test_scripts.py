@@ -5,13 +5,14 @@ import json
 
 import pytest
 
-from backend.app import config
+from backend.app import config, docs
 from backend.app.triggers import TRIGGERS
 from backend.app.wakeword import find_summon
-from eval.run import CLEAN_SCRIPTS, SCRIPTS
+from eval.run import CLEAN_SCRIPTS, SCRIPTS, expected_outcomes
 
 TRIGGER_NAMES = {t.name for t in TRIGGERS}
-OUTCOMES = {"none", "nudged", "resolved", "spoken", "recap", "answered", "declined"}
+# Flag states, summon results, and "quiet": any state except spoken.
+OUTCOMES = {"none", "nudged", "resolved", "spoken", "recap", "answered", "declined", "quiet"}
 
 
 def load(name: str) -> list[dict]:
@@ -34,7 +35,14 @@ def test_script_lines_are_well_formed(name):
         is_summon = bool(find_summon(line["text"]))
         if expect:
             assert expect["trigger"] is None or expect["trigger"] in TRIGGER_NAMES
-            assert expect["outcome"] in OUTCOMES
+            outcomes = expected_outcomes(expect)
+            assert outcomes and set(outcomes) <= OUTCOMES, line["id"]
+            # The eval grades what was said, not only the state: an answer must cite an expected
+            # line, and an interjection must mention what the moment is about.
+            if "answered" in outcomes:
+                assert expect["refs"] and set(expect["refs"]) <= set(docs.LINES), line["id"]
+            if "spoken" in outcomes:
+                assert expect["mentions"] and all(m == m.lower() for m in expect["mentions"]), line["id"]
             # A summon moment must reach the summon path, and nothing else may.
             assert is_summon == (expect["trigger"] == "SUMMON"), line["id"]
         else:
