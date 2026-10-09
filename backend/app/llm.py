@@ -61,6 +61,8 @@ class GeminiLLM:
                 response_mime_type="application/json",
                 response_json_schema=schema.model_json_schema(),
                 thinking_config=thinking,
+                # Beacon uses no tools. Without this, the SDK prints a warning for each call.
+                automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
             ),
         )
         self.api_calls += 1
