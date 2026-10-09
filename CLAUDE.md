@@ -139,7 +139,7 @@ audio) reports at once.
 | `data/scripts/` | `demo_call.json` (planted moments, each with an `expect`), `demo_call_stt_noise.json` (the same call as Chrome can write it), `control_call.json` and `adversarial_clean.json` (clean calls), `live_regressions.json` (failures from live tests), `live_patterns.json` (a relapse, a split reply, two misreads in a row, "never mind", a pause after logistics), `summon_checks.json` (questions to Beacon; "declined" = not in the documents). `expect.outcome` can be a list. "quiet" = any state except spoken (`flag_required` also needs a flag). Answered summons have `refs`; spoken moments have `mentions`. |
 | `web/src/` | React: `useRoom.ts` (WebSocket hook), `CallView.tsx`, `ObserverView.tsx`, `Recap.tsx`, `components.tsx`, `speech.ts` (push-to-talk and text-to-speech), `simulate.ts` (script runner) |
 | `tasks.py` / `Makefile` | the task runner. The Makefile only calls `tasks.py`. |
-| `DECISIONS.md`, `WRITEUP.md`, `DEMO.md` | the decision and tuning log; the challenge write-up (the author writes its "AI tools used" part); the demo video plan |
+| `DECISIONS.md`, `WRITEUP.md` | the decision and tuning log; the challenge write-up (the author writes its "AI tools used" part) |
 
 ## Commands
 
