@@ -270,7 +270,7 @@ defaults are logged under "Tuned defaults".
 - **A summon is counted in `speech_pending` before the turn is broadcast**, so the simulation
   runner never sees the summon turn without the pending answer.
 - **Text-only simulation compresses time.** It waits on each line for about the time to read it
-  (`readingTimeMs` in `simulate.ts`: 1.5 s plus 0.3 s per word), so a viewer can follow it. That
+  (`readingTimeMs` in `simulate.ts`: 2 s plus 0.35 s per word), so a viewer can follow it. That
   is still faster than speech. The cooldown is in wall-clock seconds, so a fast
   silent run can push a second interjection into the 20 s cooldown and then to the recap. Runs
   with audio, live calls, and the eval (virtual clock based on words spoken) keep real

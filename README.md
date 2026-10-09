@@ -115,9 +115,9 @@ analysis is complete and Beacon has finished speaking. Simulations use the same 
 calls. Open the counselor window next to the observer to see the cards.
 
 "Text only (no audio)" is ticked by default for a silent run. It waits on each line for about the
-time to read it (1.5 s plus 0.3 s per word), Beacon's lines too, so you can follow the call. Untick it to hear Alex, Maria
-and Beacon in different voices. The observer then plays every voice, and the call windows stay
-silent.
+time to read it (2 s plus 0.35 s per word), Beacon's lines too, so you can follow the call.
+Untick it to hear Alex, Maria and Beacon in different voices. The observer then plays every
+voice, and the call windows stay silent.
 
 A text-only run is still faster than speech. A later interjection can then fall inside the
 20-second cooldown and go to the recap instead of being spoken (see DECISIONS.md). Runs with

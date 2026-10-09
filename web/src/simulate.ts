@@ -6,8 +6,8 @@ import type { ClientMessage, RoomState, RoomStatus, ScriptTurn, Settings } from 
 const POLL_MS = 100;
 // A text-only run waits about as long as a person needs to read each line. Without this wait,
 // the lines appear as fast as the analysis runs, and the viewer cannot follow the call.
-const READ_MS_BASE = 1500;
-const READ_MS_PER_WORD = 300;
+const READ_MS_BASE = 2000;
+const READ_MS_PER_WORD = 350;
 
 /** The time to read a line on screen. A text-only run uses it instead of the spoken audio. */
 export function readingTimeMs(text: string): number {
