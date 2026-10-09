@@ -407,7 +407,28 @@ build plan are logged under "Tuned defaults".
 
 ## Tuning log
 
-### 2026-10-08: audit fixes to the ladder and the grading (re-run pending)
+### 2026-10-09: first run after the audit fixes
+
+- **Lock-step, 1 run per script** (2026-10-09, cache on, 0 errors; 129 requests, of which 114
+  went to the network first time; analyzer latency mean 1,564 ms, max 7,538 ms; summons mean
+  925 ms, max 2,179 ms): every target met after one fix. demo_call and demo_call_stt_noise 7/7
+  plus the quiet d23; control 1 private unanswered-question card that resolved on the next
+  analysis (never spoken); adversarial_clean 0 cards; live_regressions 3/3; live_patterns 7/7;
+  summon_checks 10/10 under the stricter grading (expected refs cited, out-of-documents
+  questions declined without a dollar amount).
+- **The fix:** the first pass scored live_patterns 6/7. In pattern (ii) Gemini listed the
+  work-study flag as resolved right after the parent's "Oh,", before any counselor turn, so a
+  resolution now needs a counselor turn after the evidence (see "Perceive vs. decide"). The
+  re-run replayed 114 cached responses and sent 15 new requests.
+- **Still to measure:** the control call's card still appears once (the model credited the answer
+  to "what happens if we miss July 15?" only after two counselor turns). The relapse prompt
+  line makes the model re-raise moments as "..._relapse" keys on the same parent turn; dedupe by
+  moment ignores them, so it is log noise only. One run is weaker evidence than round 2's three.
+- **Paced mode: not run.** The key's daily free-tier quota (500 requests; this eval had used
+  about 170 of them) ran out during the paced run's first script, and the eval stopped without
+  writing results. Re-run with `--paced --runs 1` after the reset.
+
+### 2026-10-08: audit fixes to the ladder and the grading
 
 An audit found the ladder correct for the world the lock-step eval constructs but not for a live
 call, and the eval grading some outcomes by the model's self-report. Changes, each with its entry
@@ -416,9 +437,7 @@ card appeared don't count; `resolved` frees its key; `UNANSWERED_AFTER_COUNSELOR
 a 36th demo line, d19a/s19a, so d17 still ends `spoken`); a parent can withdraw a question;
 `PTT_REACTION_MS`; `family_question`; stricter grading; `live_patterns`; `--paced`.
 
-- **Not measured yet.** No API key was available after these changes, so neither
-  `python -m eval.run --runs 3` nor `--paced --runs 3` has run on them, and `eval_results.md`
-  still holds round 2's lock-step report. Expected effects to check: demo moments unchanged in
+- **Not measured on 2026-10-08** (no API key that day; see the 2026-10-09 entry above). Expected effects to check: demo moments unchanged in
   lock-step (d17 now needs three counselor non-answers, which the script provides), the control
   call's late-credited question no longer produces a card, and the stricter grading may fail
   summons that cite an unexpected line.

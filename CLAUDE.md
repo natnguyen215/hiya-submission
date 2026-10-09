@@ -142,13 +142,14 @@ its audio) acks instantly.
 
 ## Status
 
-**The numbers below are from before the ladder changes (2026-10-08 audit fixes); re-run pending.**
-No `GEMINI_API_KEY` was available when the ladder, grading and paced mode changed, so neither
-`--runs 3` nor `--paced --runs 3` has been run on the new code; `eval_results.md` still holds the
-old lock-step report. The harness itself was checked with `--cache --runs 1` in both modes (every
-request failed for lack of a key, as expected) and with a scripted fake LLM.
+Latest Gemini eval (2026-10-09, after the ladder, grading and paced-mode changes, lock-step, **1
+run** per script, `gemini-3.5-flash-lite`, thinking `low`, 0 errors): every target met. demo_call
+and demo_call_stt_noise 7/7 moments plus the quiet d23; control 1 private card (resolved next
+analysis), 0 spoken; adversarial_clean 0 cards; live_regressions 3/3; live_patterns 7/7;
+summon_checks 10/10. **Paced mode: not run yet** (the daily quota ran out during its first
+script; `python -m eval.run --cache --paced --runs 1` reuses whatever is in `.cache/`).
 
-Latest Gemini eval before the changes (round 2, 2026-10-08, 3 runs of six scripts,
+Before the changes (round 2, 2026-10-08, 3 runs of six scripts,
 `gemini-3.5-flash-lite`, thinking `low`, 0 errors): demo_call and demo_call_stt_noise 8/8 planted
 moments in every run; control and adversarial clean calls ≤1 private nudge and 0 spoken in every
 run; live_regressions and summon_checks pass in every run. That round graded summons and spoken

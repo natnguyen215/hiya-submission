@@ -19,22 +19,22 @@ people, the school and the award letter are fictional. The amounts are illustrat
 
 The eval replays scripted calls through the real analyzer and policy.
 
-> **These numbers are from before the ladder changes; re-run pending.** They come from round 2
-> (2026-10-08), before the escalation-ladder fixes, the stricter grading (summon citations, what
-> Beacon actually said, the trigger) and the new paced mode. No API key was available to re-run
-> the eval after those changes, so `live_patterns` and paced mode have no results yet.
-
-Each script ran 3 times with `gemini-3.5-flash-lite` on 2026-10-08 (307 requests, 0 errors):
+Each script ran once in lock-step mode with `gemini-3.5-flash-lite` on 2026-10-09, after the
+escalation-ladder fixes and with the stricter grading (a summon must cite an expected document
+line, a spoken line must be about the moment, the trigger must match): 0 errors.
 
 | Script | What it tests | Result |
 |---|---|---|
-| `demo_call` | 8 planted moments: misreadings, unexplained jargon, an ignored question, a summon, correct restatements | 8/8 in 3 of 3 runs |
-| `demo_call_stt_noise` | the same call as Chrome transcribes it: lowercase, no question marks, mis-heard words | 8/8 in 3 of 3 runs |
-| `control_call` | a clear call with nothing planted | 0 spoken interjections, at most 1 private card |
-| `adversarial_clean` | correct restatements, jargon explained at once, "mm-hm" after logistics | 0 cards, 0 spoken |
-| `live_regressions` | failures from live testing, replayed | 3/3 in 3 of 3 runs |
-| `summon_checks` | 10 questions to Beacon, 2 of them outside the documents | 10/10 in 3 of 3 runs |
-| `live_patterns` | a relapse after a correction, a reply split over three presses, two misreads back to back, "never mind", a pause after logistics | not run yet |
+| `demo_call` | 7 planted moments (misreadings, unexplained jargon, an ignored question, a summon, correct restatements) and 1 moment that must stay quiet | 7/7, and the quiet moment stayed quiet |
+| `demo_call_stt_noise` | the same call as Chrome transcribes it: lowercase, no question marks, mis-heard words | 7/7, quiet moment quiet |
+| `control_call` | a clear call with nothing planted | 0 spoken interjections, 1 private card (resolved on the next analysis) |
+| `adversarial_clean` | correct restatements, jargon explained at once, "mm-hm" after logistics, a pause before "okay" | 0 cards, 0 spoken |
+| `live_regressions` | failures from live testing, replayed | 3/3 |
+| `live_patterns` | a relapse after a correction, a reply split over three presses, two misreads back to back, "never mind", a pause after logistics | 7/7 |
+| `summon_checks` | 10 questions to Beacon, 2 of them outside the documents | 10/10 |
+
+One run is less than the 3 runs per script of earlier rounds (see the tuning log). **Paced mode
+has no results yet:** the free tier's daily quota ran out during its first script.
 
 Full transcripts and every decision: [`eval_results.md`](eval_results.md). Each tuning step and
 its before-and-after numbers: the "Tuning log" in [`DECISIONS.md`](DECISIONS.md). 114 unit and
