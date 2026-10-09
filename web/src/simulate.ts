@@ -9,7 +9,7 @@ const POLL_MS = 100;
 const READ_MS_BASE = 2000;
 const READ_MS_PER_WORD = 350;
 
-/** The time to read a line on screen. A text-only run uses it instead of the spoken audio. */
+/** The time to read a line on screen. A text-only run waits this long after each line appears. */
 export function readingTimeMs(text: string): number {
   return READ_MS_BASE + READ_MS_PER_WORD * text.split(/\s+/).filter(Boolean).length;
 }
@@ -92,9 +92,8 @@ export async function runSimulation(script: ScriptTurn[], options: SimulationOpt
 
     step("pausing");
     await sleep(line.pause_before_ms, signal);
-    step(`${line.role} speaking`);
-    if (textOnly) await sleep(readingTimeMs(line.text), signal);
-    else {
+    if (!textOnly) {
+      step(`${line.role} speaking`);
       await speak(line.text, line.role);
       signal.throwIfAborted(); // Stop cancels the speech, so speak() ends early
     }
@@ -110,6 +109,12 @@ export async function runSimulation(script: ScriptTurn[], options: SimulationOpt
       position = found + 1;
       return found >= 0;
     });
+
+    if (textOnly) {
+      // Show the line first, then wait while the viewer reads it. The analysis runs during this wait.
+      step("reading");
+      await sleep(readingTimeMs(line.text), signal);
+    }
 
     step("waiting for analysis");
     await waitDuringCall(

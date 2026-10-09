@@ -114,7 +114,7 @@ These tabs send `beacon_playback_done`:
 - A tab with "Play Beacon audio here" on. The default is on only for the counselor. The choice is
   kept per role in localStorage. During a simulated call, the call tabs stay silent.
 - The observer tab that runs a simulation, always. With "Text only", it reports after the time
-  to read the line (`readingTimeMs` in `simulate.ts`), and it waits as long before each script line.
+  to read the line (`readingTimeMs` in `simulate.ts`), and it waits as long after each script line appears.
 `speech.speak()` resolves also after an error. So a tab that nobody clicked in (Chrome blocks its
 audio) reports at once.
 
