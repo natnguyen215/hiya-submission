@@ -1,7 +1,8 @@
-"""The one list of things Beacon watches for. Adding a trigger means adding an entry here: an
-LLM-detected trigger is rendered into the analyzer prompt automatically (name, description,
-examples and evidence rule) and policy.py reads its evidence rule from here; a code-detected
-trigger documents which function detects it."""
+"""The list of things that Beacon looks for. To add a trigger, add an entry here.
+- An LLM trigger goes into the analyzer prompt word for word: name, description, examples and
+  evidence rule. policy.py also reads the evidence rule from here.
+- A code trigger is here as documentation. Its description names the function that finds it.
+The descriptions and examples are part of the prompt. Do not copy lines from the eval scripts."""
 
 from typing import Literal
 
@@ -12,10 +13,10 @@ class Trigger(BaseModel):
     name: str
     detected_by: Literal["llm", "code"]
     description: str
-    positive_examples: list[str]  # should raise the trigger
-    negative_examples: list[str]  # look similar but should not
-    # The evidence gate requires a cited parent turn, and the LLM can be skipped after counselor
-    # turns, only while every LLM trigger is shown by the parent's reply.
+    positive_examples: list[str]  # must raise the trigger
+    negative_examples: list[str]  # look similar, but must not raise it
+    # True: the evidence must cite a parent turn. If all LLM triggers are True, the server does not
+    # call the LLM after a counselor turn when nothing is open (policy.should_analyze).
     needs_parent_evidence: bool = True
 
 

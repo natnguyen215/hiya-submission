@@ -1,5 +1,6 @@
-"""Data shapes shared by the backend: conversation state, the schemas the LLM must fill, and the
-WebSocket protocol. web/src/types.ts mirrors this file; change both together."""
+"""The data shapes of the backend: the call state, the schemas that the LLM fills in, and the
+WebSocket messages. web/src/types.ts has the same shapes for the browser. Change the two files
+together."""
 
 from typing import Annotated, Literal
 
@@ -10,7 +11,7 @@ Role = Literal["counselor", "parent", "beacon"]
 ClientRole = Literal["counselor", "parent", "observer"]
 Severity = Literal["interrupt", "recap"]
 FlagState = Literal["nudged", "resolved", "spoken", "recap", "dismissed", "dropped"]
-CardAction = Literal["dismiss", "will_clarify"]  # the two buttons on the counselor's nudge card
+CardAction = Literal["dismiss", "will_clarify"]  # the two buttons on the counselor's card
 
 
 # ---------------------------------------------------------------- conversation state
@@ -22,38 +23,37 @@ class Turn(BaseModel):
     text: str
     started_at: int  # epoch ms
     ended_at: int  # epoch ms
-    gap_ms: int | None  # silence since the previous turn ended; None for the first turn
+    gap_ms: int | None  # the silence after the previous turn. None for the first turn.
     source: Literal["voice", "typed", "script", "beacon"]
 
 
 class FlagEvent(BaseModel):
     state: FlagState
     reason: str
-    turn_id: str | None  # latest turn when the transition happened
+    turn_id: str | None  # the newest turn at the time of the change
 
 
 class Flag(BaseModel):
     id: str  # "f1", "f2", ...
     trigger: str  # a name from triggers.TRIGGERS
-    issue_key: str  # short stable key used for dedupe, e.g. "aid_package_includes_loans"
+    issue_key: str  # a short name for the issue, for dedupe. Example: "aid_package_includes_loans"
     severity: Severity
     evidence_turn_ids: list[str]
     evidence_quotes: list[str]
-    counselor_card: str  # what seems misunderstood (shown privately to the counselor)
+    counselor_card: str  # what the parent seems to misunderstand. Only the counselor sees it.
     suggested_clarification: str
-    spoken_line: str  # what Beacon says aloud if the ladder escalates (addressed to the counselor)
-    family_question: str  # the same question for the family to ask the aid office later (recap)
+    spoken_line: str  # what Beacon says aloud if the ladder escalates. It speaks to the counselor.
+    family_question: str  # the same question, for the family to ask the aid office later (recap)
     doc_refs: list[str]
     state: FlagState
-    created_at_turn: str  # latest turn when the card appeared
-    # The ladder counts turns after this one. It starts as created_at_turn; the counselor's
-    # "I'll clarify" moves it to the newest turn and adds grace_turns.
+    # The ladder counts the turns after this turn. At first it is the newest turn when the card
+    # appeared. "I'll clarify" moves it to the newest turn at the time of the click.
     ladder_start_turn: str
-    # Epoch ms of the same moment. A counselor turn counts only if it started at or after this, so
-    # a turn already in progress when the card appeared doesn't count as "saw it and moved on".
+    # The time (epoch ms) of the same moment. A counselor turn counts only if it started at or
+    # after this time. A turn that started before the card appeared does not count.
     ladder_start_ms: int
-    grace_turns: int = 0  # extra counselor turns before Beacon may speak
-    counselor_action: Literal["will_clarify", "dismissed"] | None = None  # the counselor's last click on the card
+    grace_turns: int = 0  # more counselor turns before Beacon can speak ("I'll clarify" adds them)
+    counselor_action: Literal["will_clarify", "dismissed"] | None = None  # the counselor's last click
     history: list[FlagEvent]
 
 
@@ -73,21 +73,24 @@ class LogEntry(BaseModel):
 
 
 class RoomStatus(BaseModel):
-    """Everything a tab needs to know about what the room is doing right now."""
+    """What the room does now. Each tab shows some of it."""
 
     call_status: Literal["idle", "live", "ended"] = "idle"
     simulated: bool = False  # the observer's script runner drives the call and plays all audio
-    ptt_active: Speaker | None = None  # who is holding push-to-talk
-    speaking_turn_id: str | None = None  # Beacon turn currently being played
-    speech_pending: int = 0  # queued Beacon lines plus summon answers being prepared
+    ptt_active: Speaker | None = None  # the person who holds push-to-talk
+    speaking_turn_id: str | None = None  # the Beacon turn that plays now
+    speech_pending: int = 0  # Beacon lines in the queue, plus summon answers not ready yet
     analysis: Literal["idle", "running", "error"] = "idle"
     analysis_error: str | None = None
-    analyzed_turn_count: int = 0  # transcript length covered by the last finished analysis
+    # The turns that the last analysis covered, also if it failed. The simulation runner waits for
+    # this number, so it must move on after a failure. (Room.analyzed_ok counts successes only.)
+    analyzed_turn_count: int = 0
     recap: Literal["none", "generating", "ready", "error"] = "none"
 
 
 # ---------------------------------------------------------------- LLM output schemas
-# Field order matters: models generate fields in order, so judgment fields come after evidence.
+# The order of the fields is important. The LLM writes the fields in order, so the evidence comes
+# before the decision.
 
 
 class NewFlag(BaseModel):
@@ -114,7 +117,7 @@ class QuestionAnswered(BaseModel):
 
 
 class AnalyzerOutput(BaseModel):
-    notes: str  # first, so the model summarizes the latest turns before it judges them
+    notes: str  # first: the LLM summarizes the newest turns before it decides about them
     new_flags: list[NewFlag]
     resolved_flag_ids: list[str]
     questions_opened: list[QuestionOpened]
@@ -129,19 +132,19 @@ class SummonAnswer(BaseModel):
 
 class RecapItem(BaseModel):
     label: str
-    amount: str  # e.g. "$9,000"; empty when the item has no amount
-    note: str  # plain-language meaning, e.g. "Free money. You don't pay it back."
+    amount: str  # for example "$9,000". Empty if the item has no amount.
+    note: str  # what it means, in plain words: "Free money. You don't pay it back."
     refs: list[str]  # document line ids (L.., G..) or turn ids (t..)
 
 
 class RecapTodo(BaseModel):
     task: str
-    deadline: str  # empty when there is none
+    deadline: str  # empty if there is no deadline
     refs: list[str]
 
 
 class RecapFollowUp(BaseModel):
-    question: str  # something the family should still ask or double-check
+    question: str  # a question that the family must still ask, or a fact to check
     refs: list[str]  # flag ids (f..) or turn ids (t..)
 
 
@@ -161,9 +164,9 @@ class RoomState(BaseModel):
     flags: list[Flag] = []
     parent_questions: list[ParentQuestion] = []
     log: list[LogEntry] = []
-    last_spoken_at: int | None = None  # epoch ms of the last non-summon interjection (cooldown)
+    last_spoken_at: int | None = None  # epoch ms of the last line for a flag (for the cooldown)
     recap: Recap | None = None
-    recap_unverified: list[str] = []  # recap numbers code could not find in their cited sources
+    recap_unverified: list[str] = []  # recap numbers that are not in their cited sources
 
 
 # ---------------------------------------------------------------- WebSocket: client -> server
@@ -184,12 +187,12 @@ class TurnMessage(BaseModel):
 
 
 class SimTurn(BaseModel):
-    """A scripted line sent by the observer's simulation runner on behalf of a persona."""
+    """A script line. The observer's simulation runner sends it for the counselor or the parent."""
 
     type: Literal["sim_turn"]
     role: Speaker
     text: str
-    gap_ms: int  # the script's planted pause; real elapsed time includes waiting for analysis
+    gap_ms: int  # the pause from the script. The real time is longer: the runner waits for analysis.
 
 
 class PttStart(BaseModel):
@@ -206,7 +209,7 @@ class PlaybackDone(BaseModel):
 
 
 class FlagAction(BaseModel):
-    """The counselor clicked "I'll clarify" or "Not an issue" on a nudge card."""
+    """The counselor clicked "I'll clarify" or "Not an issue" on a card."""
 
     type: Literal["flag_action"]
     flag_id: str
@@ -236,7 +239,7 @@ ClientMessage = Annotated[
 
 
 class Settings(BaseModel):
-    """The few config values the browser needs."""
+    """The config values that the browser needs."""
 
     counselor_name: str
     parent_name: str
@@ -247,7 +250,7 @@ class Settings(BaseModel):
 class Snapshot(BaseModel):
     type: Literal["snapshot"] = "snapshot"
     role: ClientRole
-    state: RoomState  # filtered for the role: the parent never sees flags or the decision log
+    state: RoomState  # filtered for the role. The parent never sees flags or the decision log.
     settings: Settings
 
 

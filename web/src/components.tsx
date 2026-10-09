@@ -1,4 +1,4 @@
-// Shared presentational pieces for the call and observer views: transcript, flag cards, status chips.
+// Parts that the call view and the observer view both use: the transcript, the flag cards and the status chips.
 import { useEffect, useRef } from "react";
 import type { CardAction, ClientRole, Flag, FlagState, Role, RoomState, RoomStatus, Settings, Turn } from "./types";
 
@@ -8,7 +8,7 @@ export function speakerName(role: Role, settings: Settings): string {
   return "Beacon";
 }
 
-/** Keeps a scrolling list pinned to its newest entry whenever `count` changes. */
+/** Keeps a scrolling list at its newest entry when `count` changes. */
 export function useScrollToEnd<T extends HTMLElement>(count: number) {
   const ref = useRef<T>(null);
   useEffect(() => {
@@ -16,8 +16,8 @@ export function useScrollToEnd<T extends HTMLElement>(count: number) {
     if (!element) return;
     const scrollToEnd = () => element.scrollTo({ top: element.scrollHeight });
     scrollToEnd();
-    // Banners that appear below the list (Beacon speaking, the recap) shrink it, which would
-    // push the newest entry out of view; follow resizes too.
+    // A banner below the list (Beacon speaking, the recap) makes the list smaller. Then the newest
+    // entry moves out of view. So scroll again when the list changes size.
     const observer = new ResizeObserver(scrollToEnd);
     observer.observe(element);
     return () => observer.disconnect();
@@ -28,8 +28,8 @@ export function useScrollToEnd<T extends HTMLElement>(count: number) {
 interface TranscriptProps {
   turns: Turn[];
   settings: Settings;
-  detailed?: boolean; // observer: turn ids and pause badges
-  highlighted?: Set<string>; // turn ids to emphasize (evidence of the hovered flag)
+  detailed?: boolean; // observer: show turn ids and pause badges
+  highlighted?: Set<string>; // turn ids to highlight (the evidence of the flag under the pointer)
 }
 
 export function Transcript({ turns, settings, detailed = false, highlighted }: TranscriptProps) {
@@ -45,7 +45,7 @@ export function Transcript({ turns, settings, detailed = false, highlighted }: T
               {turn.role === "beacon" && "★ "}
               {speakerName(turn.role, settings)}
             </span>
-            {/* Only human pauses are a signal (hesitation); the analyzer ignores Beacon's. */}
+            {/* Only a person's pause can show hesitation. The analyzer ignores Beacon's pauses. */}
             {detailed && turn.role !== "beacon" && turn.gap_ms !== null && turn.gap_ms >= settings.notable_gap_ms && (
               <span className="badge badge-pause">{(turn.gap_ms / 1000).toFixed(1)}s pause</span>
             )}
@@ -75,8 +75,8 @@ function CardButton({ label, onClick }: { label: string; onClick: () => void }) 
     <button
       className="flag-action"
       onClick={(event) => {
-        // Space is the push-to-talk key. A button that kept focus after the click would be
-        // pressed again by the next Space, so give the focus back to the page.
+        // Space is the push-to-talk key. If the button keeps the focus after the click, the next
+        // Space clicks it again. So remove the focus.
         event.currentTarget.blur();
         onClick();
       }}
@@ -88,8 +88,8 @@ function CardButton({ label, onClick }: { label: string; onClick: () => void }) 
 
 interface FlagCardProps {
   flag: Flag;
-  detailed?: boolean; // observer: ids, evidence and the ladder history
-  onAction?: (action: CardAction) => void; // counselor only: shows the card's buttons while it is nudged
+  detailed?: boolean; // observer: show ids, evidence and the ladder history
+  onAction?: (action: CardAction) => void; // counselor only: shows the buttons while the flag is nudged
 }
 
 export function FlagCard({ flag, detailed = false, onAction }: FlagCardProps) {
@@ -107,7 +107,7 @@ export function FlagCard({ flag, detailed = false, onAction }: FlagCardProps) {
       </p>
       {onAction && flag.state === "nudged" && (
         <div className="flag-actions">
-          {/* "I'll clarify" works once per flag; "Not an issue" stays available after it. */}
+          {/* "I'll clarify" works once per flag. "Not an issue" is still available after it. */}
           {flag.counselor_action === "will_clarify" ? (
             <span className="flag-note">Beacon will wait for you</span>
           ) : (
@@ -130,12 +130,8 @@ export function FlagCard({ flag, detailed = false, onAction }: FlagCardProps) {
           <dd>{flag.family_question}</dd>
           <dt>Documents</dt>
           <dd>{flag.doc_refs.length > 0 ? flag.doc_refs.join(", ") : "none cited"}</dd>
-          {/* The ladder counts turns after the newest turn when the card appeared, or after the
-              counselor's "I'll clarify" if that came later. */}
-          <dt>
-            Ladder (card shown after {flag.created_at_turn}
-            {flag.ladder_start_turn !== flag.created_at_turn && `; counting from ${flag.ladder_start_turn}`})
-          </dt>
+          {/* The ladder counts the turns after the card appeared, or after "I'll clarify". */}
+          <dt>Ladder (counting after {flag.ladder_start_turn})</dt>
           <dd>
             <ol className="flag-history">
               {flag.history.map((event, i) => (
@@ -163,7 +159,7 @@ function analysisLabel(status: RoomStatus): string {
   return status.analysis === "running" ? "Analyzing…" : "Analyzer idle";
 }
 
-/** Status chips. The parent sees only the call itself; the observer also sees the pipeline counters. */
+/** The status chips. The parent sees only the call status. The observer also sees the counters. */
 export function StatusBar({ state, connected, role }: { state: RoomState; connected: boolean; role: ClientRole }) {
   const { status } = state;
   return (

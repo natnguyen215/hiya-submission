@@ -1,9 +1,10 @@
-// The Family Recap shown in every view after the call: plain-language sections, read aloud, downloadable as Markdown.
+// The Family Recap. All views show it after the call. It has plain-language sections, it can be
+// read aloud, and it can be downloaded as Markdown.
 import { useEffect, useRef, useState } from "react";
 import { speak, stopSpeaking } from "./speech";
 import type { Recap, RecapItem, RoomState } from "./types";
 
-/** One line of the recap: an aid item, a to-do or a question. Fields it doesn't have are "". */
+/** One line of the recap: an aid item, a task or a question. A field that it does not have is "". */
 interface Entry {
   label: string;
   amount: string;
@@ -13,21 +14,21 @@ interface Entry {
 }
 
 interface Section {
-  key: string; // React key and CSS class (each section has its own color)
+  key: string; // the React key and the CSS class (each section has its own color)
   title: string;
   entries: Entry[];
 }
 
 const UNVERIFIED_TITLE = "Numbers Beacon could not check against the documents:";
 
-// One list of sections drives the page, the spoken version and the Markdown, so the three can't drift apart.
+// The page, the spoken version and the Markdown all use this one list. So the three stay the same.
 function sections(recap: Recap): Section[] {
   const money = (items: RecapItem[]): Entry[] => items.map((item) => ({ ...item, deadline: "" }));
-  // To-dos and questions are just words: no amount or note.
+  // Tasks and questions are only words: no amount or note.
   const words = (label: string, refs: string[], deadline = ""): Entry => {
     return { label, amount: "", note: "", deadline, refs };
   };
-  // The heading already says what the cost is; the item's own label would only repeat it.
+  // The heading says what the cost is, so do not show the item's label again.
   const cost = { ...recap.cost_of_attendance, label: "", deadline: "" };
   const result: Section[] = [
     { key: "cost", title: "Total cost for the year", entries: [cost] },
@@ -41,7 +42,7 @@ function sections(recap: Recap): Section[] {
     { key: "still", title: "What you may still need to pay or borrow", entries: money(recap.still_to_pay) },
     { key: "todo", title: "To do", entries: recap.todos.map((t) => words(t.task, t.refs, t.deadline)) },
   ];
-  // Nothing left to ask is good news, not an empty section.
+  // If there is nothing to ask, do not show an empty section.
   if (recap.follow_ups.length > 0) {
     const entries = recap.follow_ups.map((f) => words(f.question, f.refs));
     result.push({ key: "follow-ups", title: "Still worth asking about", entries });
@@ -49,23 +50,23 @@ function sections(recap: Recap): Section[] {
   return result;
 }
 
-/** An entry as sentences, e.g. ["Pell Grant: $6,000.", "Free money."] or ["Send forms.", "Deadline: July 15."]. */
+/** An entry as sentences. Examples: ["Pell Grant: $6,000.", "Free money."], ["Send forms.", "Deadline: July 15."]. */
 function sentences({ label, amount, note, deadline }: Entry): string[] {
   const parts = [[label, amount].filter(Boolean).join(": "), note, deadline && `Deadline: ${deadline}`];
   return parts.filter(Boolean).map((part) => (/[.!?]$/.test(part) ? part : `${part}.`));
 }
 
-/** One paragraph per section for the speech engine: no reference ids, "$9,000" spelled "9,000 dollars". */
+/** One paragraph for each section, for the speech engine. No reference ids. "$9,000" becomes "9,000 dollars". */
 function spokenSections(recap: Recap, unverified: string[]): string[] {
-  // A listener can't see the on-screen warning, so say it before any number is read.
+  // A listener cannot see the warning on the screen. So say it before the numbers.
   const caveat =
     unverified.length > 0
       ? ["Some numbers could not be checked against the documents, so please check the written recap."]
       : [];
   return caveat.concat(sections(recap).map((section) => {
     const body = section.entries.length > 0 ? section.entries.flatMap(sentences).join(" ") : "None.";
-    // Voices disagree on how to read "$"; the spelled-out word reads the same in all of them. Commas
-    // only between groups of three digits, so the comma in "$9,000, $6,000" stays a pause.
+    // Voices read "$" in different ways. All voices read the word "dollars" the same way.
+    // The pattern accepts a comma only before three digits, so the comma in "$9,000, $6,000" stays a pause.
     return `${section.title}: ${body}`.replace(/\$(\d+(?:,\d{3})*(?:\.\d+)?)/g, "$1 dollars");
   }));
 }
@@ -93,7 +94,7 @@ function download(markdown: string): void {
   link.href = url;
   link.download = "family-recap.md";
   link.click();
-  // The browser reads the blob after click() returns; free it once the download has had time to start.
+  // The browser reads the blob after click() returns. Free it when the download has had time to start.
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
@@ -114,7 +115,7 @@ export function FamilyRecap({ state, onRefHover }: FamilyRecapProps) {
       </section>
     );
   }
-  // recap_ready always arrives before the status that says "ready"; `!recap` only narrows the type.
+  // recap_ready always comes before the status "ready". `!recap` is only for the type checker.
   if (status === "generating" || !recap) {
     return (
       <section className="recap-status">
@@ -175,10 +176,10 @@ export function FamilyRecap({ state, onRefHover }: FamilyRecapProps) {
   );
 }
 
-/** Reads the recap in Beacon's voice, a section at a time. Purely local: no other tab or the server is told. */
+/** Reads the recap in Beacon's voice, one section at a time. Only in this tab: the server and other tabs do not know. */
 function ReadAloud({ recap, unverified }: { recap: Recap; unverified: string[] }) {
   const [reading, setReading] = useState(false);
-  // The reading in progress. Stop aborts it, so its loop doesn't go on to the next section.
+  // The current reading. Stop aborts it, so the loop does not go to the next section.
   const run = useRef<AbortController | null>(null);
 
   async function read() {
@@ -186,7 +187,7 @@ function ReadAloud({ recap, unverified }: { recap: Recap; unverified: string[] }
     run.current = controller;
     setReading(true);
     for (const paragraph of spokenSections(recap, unverified)) {
-      await speak(paragraph, "beacon"); // resolves early when stop() cancels the speech
+      await speak(paragraph, "beacon"); // resolves early if stop() cancels the speech
       if (controller.signal.aborted) return;
     }
     run.current = null;
@@ -200,7 +201,7 @@ function ReadAloud({ recap, unverified }: { recap: Recap; unverified: string[] }
     setReading(false);
   }
 
-  // A reset or a new call removes the recap; don't keep reading the old one over the next call.
+  // A reset or a new call removes the recap. Stop reading the old recap.
   useEffect(
     () => () => {
       if (!run.current) return;

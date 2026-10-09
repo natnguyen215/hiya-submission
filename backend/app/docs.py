@@ -1,5 +1,5 @@
-"""Loads the grounding documents (award letter, glossary) and indexes their numbered lines so
-citations like "L14" or "G9" can be checked and shown."""
+"""Reads the documents (the award letter and the glossary). Each numbered line has an id, such as
+"L14" or "G9". The code uses the ids to check and show citations."""
 
 import re
 
@@ -29,5 +29,5 @@ def _load() -> tuple[str, dict[str, DocLine]]:
     return "\n\n".join(full_text), lines
 
 
-# Loaded once at import: the documents are fixed for the life of the process.
+# Read once, at import. The documents do not change while the server runs.
 DOCUMENTS_TEXT, LINES = _load()

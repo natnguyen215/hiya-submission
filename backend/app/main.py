@@ -1,5 +1,5 @@
-"""FastAPI entry point: REST endpoints for the documents and demo scripts, the /ws WebSocket, and
-the built frontend, so the whole demo runs as one process."""
+"""The FastAPI app. It serves the documents and the scripts, the /ws WebSocket, and the built
+frontend. So the full demo runs as one process."""
 
 import json
 
@@ -52,13 +52,13 @@ async def websocket(ws: WebSocket) -> None:
             await rooms.handle(room, ws, join.role, message)
     except WebSocketDisconnect:
         pass
-    finally:  # whatever ended the connection, release the tab's push-to-talk and stop sending to it
+    finally:  # for all ends of the connection: release the tab's push-to-talk, and stop sending to it
         await rooms.disconnect(room, ws)
 
 
 @app.get("/{path:path}", include_in_schema=False)
 def frontend(path: str):
-    """Serve the built React app; unknown paths (/call, /observer) get index.html."""
+    """Serve the built React app. Other paths (/call, /observer) get index.html."""
     if path.startswith("api/"):
         raise HTTPException(404, f"No API route /{path}")
     dist = config.WEB_DIST.resolve()

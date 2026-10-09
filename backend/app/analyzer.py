@@ -1,6 +1,8 @@
-"""Builds prompts from room state, calls the LLM, and validates what comes back. analyze()
-perceives what is happening in the call, answer_summon() answers a question put to Beacon, and
-generate_recap() writes the Family Recap. The prompt text lives in backend/prompts/*.txt."""
+"""The LLM tasks. Each one makes a prompt from the room state, calls the LLM, and checks the reply.
+- analyze(): find what happens in the call (possible misunderstandings, questions, resolutions).
+- answer_summon(): answer a question to Beacon from the documents.
+- generate_recap(): write the Family Recap after the call.
+The prompt texts are in backend/prompts/*.txt."""
 
 import re
 import time
@@ -21,7 +23,7 @@ class InvalidOutput(Exception):
 
 class AnalysisResult(BaseModel):
     output: AnalyzerOutput
-    turn_count: int  # how many turns the analyzer saw
+    turn_count: int  # the number of turns that the analyzer saw
     latency_ms: int
     error: str | None = None
 
@@ -30,7 +32,7 @@ class AnalysisResult(BaseModel):
 
 
 def _fill(template_name: str, values: dict[str, str]) -> str:
-    """Load a prompt file and replace its {{PLACEHOLDERS}} (not str.format: prompts contain JSON)."""
+    """Read a prompt file and fill in its {{PLACEHOLDERS}}. (str.format would break on the JSON in the prompts.)"""
     text = (config.PROMPTS_DIR / f"{template_name}.txt").read_text(encoding="utf-8")
     names = {"COUNSELOR_NAME": config.COUNSELOR_NAME, "PARENT_NAME": config.PARENT_NAME}
     for key, value in {**names, **values}.items():
@@ -102,7 +104,7 @@ def build_analysis_prompt(state: RoomState) -> str:
 
 
 async def _generate(llm: LLM, prompt: str, schema: type[BaseModel], timeout_s: float):
-    """Call the LLM and validate against the schema, retrying once on invalid output."""
+    """Call the LLM and check the reply against the schema. If the reply is not valid, try once more."""
     problem = None
     for _ in range(2):
         text = await llm.generate_json(prompt, schema, timeout_s)
@@ -114,7 +116,8 @@ async def _generate(llm: LLM, prompt: str, schema: type[BaseModel], timeout_s: f
 
 
 async def analyze(llm: LLM, state: RoomState) -> AnalysisResult:
-    """Never raises: any LLM failure becomes an empty result with an error, so the call goes on."""
+    """Find what happens in the call. This never raises an exception. If the LLM fails, the
+    result is empty and has an error, and the call continues."""
     turn_count = len(state.turns)
     prompt = build_analysis_prompt(state)
     started = time.monotonic()
@@ -128,8 +131,8 @@ async def analyze(llm: LLM, state: RoomState) -> AnalysisResult:
 
 
 async def answer_summon(llm: LLM, state: RoomState, turn: Turn) -> SummonAnswer:
-    """The LLM gets the whole turn as said (casing, punctuation, words before the name), not the
-    lowercased question wakeword.find_summon() extracts for the log."""
+    """Answer a question to Beacon. The LLM gets the full turn as the parent said it, not the
+    short question that wakeword.find_summon() finds."""
     prompt = _fill(
         "summon",
         {
@@ -145,10 +148,11 @@ async def answer_summon(llm: LLM, state: RoomState, turn: Turn) -> SummonAnswer:
 
 
 def _open_issues(state: RoomState) -> str:
-    # By now end_of_call() has moved every nudged flag to "recap". Flags the counselor dismissed
-    # are left out on purpose. The parent's unanswered questions are listed from parent_questions,
-    # not from their flags, so dismissing an UNANSWERED_QUESTION card silences Beacon during the
-    # call but cannot remove the family's open question from the recap.
+    """The open issues for the recap prompt.
+
+    end_of_call() has moved each nudged flag to "recap". Dismissed flags are not open issues.
+    Unanswered questions come from parent_questions, not from their flags. So "Not an issue" on
+    an UNANSWERED_QUESTION card stops Beacon during the call, but the question stays in the recap."""
 
     def issue(flag, how: str) -> str:
         return f"{flag.id} ({flag.trigger}, {how}): {flag.counselor_card} Question for the family: {flag.family_question}"
@@ -176,11 +180,11 @@ async def generate_recap(llm: LLM, state: RoomState) -> Recap:
 
 
 def add_missing_follow_ups(recap: Recap, state: RoomState) -> list[str]:
-    """The recap must list every open issue (recap-state flags, unanswered questions). Add any the
-    LLM left out, using the flag's family_question (spoken_line is addressed to the counselor:
-    "Quick check for Maria: ...") or the parent's own words, and return their ids for the log. As
-    in _open_issues(), a dismissed flag is not an open issue, but a question the parent asked and
-    nobody answered still is, dismissed card or not."""
+    """Add each open issue that the LLM left out of the recap. Return their ids for the log.
+
+    An open issue is a flag in the "recap" state or an unanswered question (as in _open_issues).
+    The follow-up uses the flag's family_question, or the parent's own words for a question.
+    (spoken_line is not correct here: it speaks to the counselor.)"""
     cited = {ref for follow_up in recap.follow_ups for ref in follow_up.refs}
     missing = [(f.id, f.family_question) for f in state.flags if f.state == "recap" and f.id not in cited]
     missing += [
@@ -200,7 +204,7 @@ def _numbers(text: str) -> set[str]:
 
 
 def unverified_numbers(recap: Recap, state: RoomState) -> list[str]:
-    """Numbers in the recap that don't appear in any line, turn, or flag evidence the item cites."""
+    """The numbers in the recap that are not in the document lines, turns or flags that the item cites."""
     turn_text = {t.id: t.text for t in state.turns}
     for flag in state.flags:
         turn_text[flag.id] = " ".join(turn_text.get(tid, "") for tid in flag.evidence_turn_ids)

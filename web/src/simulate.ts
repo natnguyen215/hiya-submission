@@ -1,4 +1,5 @@
-// The demo script runner: plays a scripted call into the room line by line, pacing each line on the server's analysis and Beacon's speech.
+// The script runner. It sends a script to the room, one line at a time. Before each line, it
+// waits for the analysis of the previous line and for Beacon to finish speaking.
 import { speak } from "./speech";
 import type { ClientMessage, RoomState, RoomStatus, ScriptTurn, Settings } from "./types";
 
@@ -8,12 +9,12 @@ interface SimulationOptions {
   send: (message: ClientMessage) => void;
   stateRef: { readonly current: RoomState | null };
   settings: Settings;
-  textOnly: boolean; // skip the persona voices (Beacon's audio is the observer's call)
-  signal: AbortSignal; // Stop aborts it
+  textOnly: boolean; // do not speak the counselor's and the parent's lines
+  signal: AbortSignal; // the Stop button aborts the run
   onProgress: (text: string, expect?: ScriptTurn["expect"]) => void;
 }
 
-/** Resolves after `ms`, or rejects as soon as the run is stopped. */
+/** Resolves after `ms`. Rejects at once if the run stops. */
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     signal.throwIfAborted();
@@ -30,9 +31,9 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
 }
 
 /**
- * Polls until `check()` is true, rejecting if `timeoutMs` passes. Polling (rather than reacting to each
- * message) is enough because every condition below describes where the room settles (the turn
- * exists, analysis caught up, Beacon is quiet), not a passing moment a 100 ms poll could miss.
+ * Checks every 100 ms until `check()` is true. Rejects after `timeoutMs`.
+ * A poll is sufficient: each condition below stays true when it becomes true (the turn exists,
+ * the analysis caught up, Beacon is quiet). So the poll cannot miss it.
  */
 async function waitUntil(check: () => boolean, signal: AbortSignal, timeoutMs = Infinity): Promise<void> {
   const deadline = Date.now() + timeoutMs;
@@ -53,8 +54,7 @@ export async function runSimulation(script: ScriptTurn[], options: SimulationOpt
     if (!stateRef.current) throw new Error("Not connected to the room.");
     return stateRef.current;
   };
-  // Waits during the call also fail fast if someone ends or resets it, instead of waiting forever
-  // for a turn the server rejected.
+  // If a person ends or resets the call, stop at once. Do not wait for a turn that the server refused.
   const waitDuringCall = (check: () => boolean, timeoutMs?: number) =>
     waitUntil(
       () => {
@@ -67,15 +67,15 @@ export async function runSimulation(script: ScriptTurn[], options: SimulationOpt
 
   onProgress("Resetting the room…");
   send({ type: "reset_room" });
-  // Wait for the reset's snapshot, or the checks below could pass on the previous call's state.
-  // (An idle room never has turns: the server only accepts turns while the call is live.)
+  // Wait for the snapshot after the reset. If not, the checks below can use the previous call's
+  // state. (An idle room has no turns: the server accepts turns only during a live call.)
   await waitUntil(() => room().status.call_status === "idle", signal);
   send({ type: "start_call", simulated: true });
   await waitUntil(() => room().status.call_status === "live", signal);
 
   onProgress("Waiting for Beacon's opening line…");
-  // The opening is over once it is in the transcript and nothing is queued or playing. Checking the
-  // transcript avoids racing the first status message, which may still show an idle speaker.
+  // The opening line is done when it is in the transcript and nothing is in the queue or playing.
+  // The check of the transcript is necessary: the first status message can still show Beacon idle.
   await waitDuringCall(() => room().turns.some((t) => t.role === "beacon") && beaconIdle(room().status));
 
   for (const [index, line] of script.entries()) {
@@ -86,14 +86,14 @@ export async function runSimulation(script: ScriptTurn[], options: SimulationOpt
     if (!textOnly) {
       step(`${line.role} speaking`);
       await speak(line.text, line.role);
-      signal.throwIfAborted(); // Stop cancels speech, which ends speak() early
+      signal.throwIfAborted(); // Stop cancels the speech, so speak() ends early
     }
 
     const before = room().turns.length;
     send({ type: "sim_turn", role: line.role, text: line.text, gap_ms: line.pause_before_ms });
     step("waiting for the server");
-    // The line's 1-based position in the transcript, the unit analyzed_turn_count counts in.
-    // Searching past `before` skips anything already there, e.g. an identical earlier line.
+    // The line's position in the transcript (from 1), which is how analyzed_turn_count counts.
+    // Look only after `before`, to skip an earlier line with the same text.
     let position = 0;
     await waitDuringCall(() => {
       const found = room().turns.findIndex((t, i) => i >= before && t.role === line.role && t.text === line.text.trim());
@@ -108,8 +108,8 @@ export async function runSimulation(script: ScriptTurn[], options: SimulationOpt
     );
 
     step("waiting for Beacon");
-    // Safe to check right after the analysis: the server counts any line that analysis decided on
-    // in speech_pending in the same status message that advances analyzed_turn_count.
+    // This check is safe just after the analysis. The status message that moves
+    // analyzed_turn_count also includes the analysis's line in speech_pending.
     await waitDuringCall(() => beaconIdle(room().status));
   }
 

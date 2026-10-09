@@ -1,6 +1,7 @@
-"""Cross-platform task runner (Windows has no make; the Makefile just calls this).
+"""The task runner. It works on Windows, macOS and Linux. (Windows has no make. The Makefile only
+calls this file.)
 
-Usage: python tasks.py install | dev | build | run | test | eval [--cache] [--script NAME] [--paced]"""
+Usage: python tasks.py install | dev | build | run | test | eval [--cache] [--script NAME] [--runs N]"""
 
 import os
 import subprocess
@@ -27,12 +28,13 @@ def install() -> None:
 
 
 def dev() -> None:
-    """Backend with auto-reload on :8000 plus Vite on :5173 (it proxies /api and /ws to :8000)."""
+    """Run the backend on :8000 (it reloads when the code changes) and Vite on :5173.
+    Vite sends /api and /ws to :8000."""
     backend = subprocess.Popen([str(VENV_PYTHON), *SERVER, "--reload"], cwd=ROOT)
     frontend = subprocess.Popen([NPM, "run", "dev"], cwd=WEB)
     try:
         backend.wait()
-    finally:  # Ctrl+C, or uvicorn exiting on its own (port busy), stops both
+    finally:  # Ctrl+C, or a uvicorn stop (for example, the port is in use), stops both
         stop(frontend)
         stop(backend)
 
@@ -40,7 +42,7 @@ def dev() -> None:
 def stop(process: subprocess.Popen) -> None:
     if process.poll() is not None:
         return
-    if os.name == "nt":  # terminate() would end only the npm.cmd wrapper and leave Vite running
+    if os.name == "nt":  # terminate() stops only npm.cmd on Windows. Vite would continue to run.
         subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)], capture_output=True)
     else:
         process.terminate()
@@ -51,7 +53,7 @@ def build() -> None:
 
 
 def serve() -> None:
-    """One process: FastAPI serves the built frontend at http://localhost:8000."""
+    """Run one process. FastAPI serves the built frontend at http://localhost:8000."""
     run(str(VENV_PYTHON), *SERVER)
 
 

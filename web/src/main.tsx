@@ -1,4 +1,5 @@
-// Entry point: picks the view from the URL path (/call, /observer, or the landing page) and the room from ?room=.
+// The entry point. The URL path selects the view (/call, /observer or the start page).
+// ?room= selects the room.
 import { createRoot } from "react-dom/client";
 import { CallView } from "./CallView";
 import { ObserverView } from "./ObserverView";
@@ -36,6 +37,6 @@ function App() {
   return <Landing />;
 }
 
-// No <StrictMode>: its development-only double mount would open, drop and reopen each tab's
-// WebSocket, which shows up as a phantom join on the server.
+// No <StrictMode>. In development it mounts each component two times, so each tab would open,
+// close and open its WebSocket again. The server would see an extra join.
 createRoot(document.getElementById("root")!).render(<App />);

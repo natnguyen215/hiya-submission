@@ -1,6 +1,9 @@
-"""The only module that talks to Gemini. It spaces calls out for the free-tier rate limits, applies
-a timeout, backs off after a 429, and can cache responses on disk so eval reruns cost nothing.
-FakeLLM stands in for it in tests."""
+"""The only module that calls Gemini. It:
+- keeps a minimum time between calls, for the free-tier rate limits,
+- stops a call that takes too long (timeout),
+- waits longer after a 429 (rate limited) error,
+- can keep the responses in a cache on disk, so the eval can run again at no cost.
+The tests use FakeLLM instead."""
 
 import asyncio
 import hashlib
@@ -21,18 +24,18 @@ class LLMError(Exception):
 class GeminiLLM:
     def __init__(self, cache: bool = False):
         self.cache = cache
-        # For the eval report: all requests, cache hits, network calls, and the network time of
-        # each (excluding the wait for a rate-limit slot).
+        # Counters for the eval report. latencies_ms is the network time of each call. It does
+        # not include the wait before the call.
         self.requests = 0
         self.cache_hits = 0
         self.api_calls = 0
         self.latencies_ms: list[int] = []
-        self._client: genai.Client | None = None  # created on first use so a missing key isn't fatal
+        self._client: genai.Client | None = None  # made at the first call, so the app starts without a key
         self._lock = asyncio.Lock()
-        self._next_call_at = 0.0  # monotonic time before which no call may start
+        self._next_call_at = 0.0  # monotonic time. No call can start before it.
 
     async def generate_json(self, prompt: str, schema: type[BaseModel], timeout_s: float) -> str:
-        """Return the model's raw JSON text for `schema`. Raises LLMError on API problems."""
+        """Return the model's JSON text for `schema`. Raise LLMError if the API call fails."""
         self.requests += 1
         settings = f"{config.GEMINI_MODEL}|{config.GEMINI_THINKING_LEVEL}|{schema.__name__}"
         key = hashlib.sha256(f"{settings}|{prompt}".encode()).hexdigest()
@@ -43,7 +46,7 @@ class GeminiLLM:
         if not config.GEMINI_API_KEY:
             raise LLMError("GEMINI_API_KEY is not set")
         if self._client is None:
-            # attempts=1: retries are ours to decide (backoff below), not the SDK's.
+            # attempts=1: the SDK must not try again. This module decides when to try again.
             options = types.HttpOptions(retry_options=types.HttpRetryOptions(attempts=1))
             self._client = genai.Client(api_key=config.GEMINI_API_KEY, http_options=options)
 
@@ -69,8 +72,8 @@ class GeminiLLM:
         except errors.APIError as exc:
             if exc.code == 429:
                 self._next_call_at = max(self._next_call_at, time.monotonic() + config.LLM_BACKOFF_SECONDS)
-                # Google's message ends by naming the quota that ran out and when to retry. A
-                # per-day quota ("retry in 15h") won't come back by waiting 20 s; the log says so.
+                # Google's message gives the quota that ran out and when to try again. Put that
+                # part in the error. A daily quota ("retry in 15h") does not come back in 20 s.
                 message = " ".join(str(exc.message or "").split())
                 detail = message[message.find("Quota exceeded") :][:300] if "Quota exceeded" in message else message[:300]
                 raise LLMError(f"rate limited (429); pausing LLM calls for {config.LLM_BACKOFF_SECONDS:.0f}s. {detail}") from exc
@@ -78,17 +81,18 @@ class GeminiLLM:
 
         self.latencies_ms.append(int((time.monotonic() - started) * 1000))
         text = response.text or ""
-        # Cache only valid output, so the analyzer's retry of a bad response really asks again.
+        # Keep only valid replies in the cache. Then a retry after a bad reply calls the LLM again.
         if self.cache and _is_valid(text, schema):
             config.CACHE_DIR.mkdir(exist_ok=True)
             cache_file.write_text(text, encoding="utf-8")
         return text
 
     async def _wait_for_slot(self) -> None:
-        """Start calls at least MIN_SECONDS_BETWEEN_LLM_CALLS apart across all rooms (the quota is
-        per API key). The lock makes concurrent callers queue up in order."""
+        """Wait until a call can start. Calls from all rooms start a minimum of
+        MIN_SECONDS_BETWEEN_LLM_CALLS apart, because the quota is per API key. The lock makes
+        callers wait in order."""
         async with self._lock:
-            # A loop, not one sleep: a 429 while we slept pushes the next slot later.
+            # A loop, not one sleep: a 429 during the sleep moves the next start time later.
             while (delay := self._next_call_at - time.monotonic()) > 0:
                 await asyncio.sleep(delay)
             self._next_call_at = time.monotonic() + config.MIN_SECONDS_BETWEEN_LLM_CALLS
@@ -103,8 +107,8 @@ def _is_valid(text: str, schema: type[BaseModel]) -> bool:
 
 
 class FakeLLM:
-    """Test double. `respond(prompt, schema)` returns a pydantic instance or a JSON string, or
-    raises to simulate an API failure. Every prompt is kept for assertions."""
+    """An LLM for tests. `respond(prompt, schema)` returns a pydantic object or a JSON string.
+    It can raise an exception to act as an API failure. The prompts are kept for the tests."""
 
     def __init__(self, respond: Callable[[str, type[BaseModel]], BaseModel | str]):
         self.respond = respond

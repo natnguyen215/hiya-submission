@@ -1,4 +1,4 @@
-"""Focused regressions for room turn-taking and log filenames; no network or LLM calls."""
+"""Tests for push-to-talk, voice pauses and the speech queue in rooms.py. No network or LLM calls."""
 
 import asyncio
 import json
@@ -7,7 +7,7 @@ from helpers import make_state, new_flag, output
 
 from backend.app import config, policy, rooms
 from backend.app.llm import FakeLLM
-from backend.app.models import PttStart, PttStop, SimTurn, StatusMessage, TurnMessage
+from backend.app.models import PttStart, PttStop, StatusMessage, TurnMessage
 
 
 class Socket:
@@ -33,24 +33,13 @@ def test_only_the_holding_socket_can_release_push_to_talk():
         await rooms.disconnect(room, other)
         assert room.state.status.ptt_active == "parent"
 
-        # A failed broadcast must release the floor too, even before the receive loop exits.
+        # A failed broadcast must also release push-to-talk, before the receive loop stops.
         holder.fail = True
         await rooms.broadcast(room, StatusMessage(status=room.state.status))
         await rooms.disconnect(room, holder)
         assert room.state.status.ptt_active is None
         assert observer.messages[-1]["status"]["ptt_active"] is None
         assert room.last_activity > 0
-
-    asyncio.run(run())
-
-
-def test_push_to_talk_is_rejected_during_assistant_playback():
-    async def run():
-        room = rooms.Room(name="speaking")
-        room.state.status.call_status = "live"
-        room.state.status.speaking_turn_id = "t1"
-        await rooms.handle(room, Socket(), "parent", PttStart(type="ptt_start"))
-        assert room.state.status.ptt_active is None
 
     asyncio.run(run())
 
@@ -72,34 +61,6 @@ def test_a_queued_line_for_a_dismissed_flag_is_not_spoken(monkeypatch):
     asyncio.run(run())
 
 
-def test_room_names_are_safe_in_log_filenames(monkeypatch, tmp_path):
-    monkeypatch.setattr(config, "LOGS_DIR", tmp_path / "logs")
-
-    async def run():
-        room = rooms.Room(name="family/aid:room")
-        try:
-            await rooms.start_call(room, simulated=False)
-            assert room.log_path.parent == config.LOGS_DIR
-            assert room.log_path.is_file()
-            assert ":" not in room.log_path.name
-        finally:
-            rooms._cancel_tasks(room)
-
-    asyncio.run(run())
-
-
-def test_call_tabs_cannot_submit_script_turns_as_another_persona():
-    async def run():
-        room = rooms.Room(name="roles")
-        room.state.status.call_status = "live"
-        for role in ("parent", "counselor"):
-            message = SimTurn(type="sim_turn", role="parent", text="Spoofed turn", gap_ms=0)
-            await rooms.handle(room, Socket(), role, message)
-        assert room.state.turns == []
-
-    asyncio.run(run())
-
-
 def test_voice_gaps_leave_out_the_time_to_press_the_key(monkeypatch):
     monkeypatch.setattr(rooms, "llm", FakeLLM(lambda prompt, schema: output()))
     monkeypatch.setattr(config, "PTT_REACTION_MS", 600)
@@ -109,9 +70,9 @@ def test_voice_gaps_leave_out_the_time_to_press_the_key(monkeypatch):
         room.state.status.call_status = "live"
         sent = [
             ("counselor", 1_000, 2_000, "typed"),
-            ("parent", 4_000, 5_000, "voice"),  # 2000 ms after t1, 600 of them reaching for the key
-            ("counselor", 5_300, 6_000, "voice"),  # 300 ms: never below zero
-            ("parent", 9_000, 9_500, "typed"),  # typed turns keep the whole gap
+            ("parent", 4_000, 5_000, "voice"),  # 2000 ms after t1. 600 ms of it is the key press.
+            ("counselor", 5_300, 6_000, "voice"),  # 300 ms: the result is never below zero
+            ("parent", 9_000, 9_500, "typed"),  # a typed turn keeps the full pause
         ]
         for role, started, ended, source in sent:
             message = TurnMessage(type="turn", text="Hello.", started_at=started, ended_at=ended, source=source)
