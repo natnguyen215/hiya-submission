@@ -1,4 +1,4 @@
-/* All styling for every view. One palette, so each speaker has the same color everywhere. */
+/* The styles for all views. One palette, so each speaker has the same color in all views. */
 
 :root {
   --bg: #f4f6f9;
@@ -381,7 +381,7 @@ select {
   color: var(--grey);
 }
 
-/* Small and plain on purpose: the card's text is what the counselor should read first. */
+/* Small and plain: the counselor must read the card's text first. */
 .flag-actions {
   display: flex;
   flex-wrap: wrap;
@@ -486,7 +486,7 @@ select {
   background: var(--surface);
 }
 
-/* The header stays in view while the recap scrolls, so its buttons are always reachable. */
+/* The header stays in view when the recap scrolls, so the user can always reach its buttons. */
 .recap-header {
   position: sticky;
   top: 0;
@@ -647,12 +647,12 @@ select {
   gap: 14px;
 }
 
-/* The recap shares the panel with the transcript, which keeps at least the remaining 40%. */
+/* The recap and the transcript share the panel. The transcript keeps a minimum of 40%. */
 .call-main .family-recap {
   max-height: 60%;
 }
 
-/* What the recognizer has heard so far, shown like a turn that isn't in the transcript yet. */
+/* The text that the recognizer heard so far. It looks like a turn that is not in the transcript yet. */
 .heard {
   margin: 0;
   padding: 6px 14px;
@@ -778,7 +778,7 @@ select {
   margin: 16px 24px 0;
 }
 
-/* Capped so the dashboard grid below keeps most of the screen. */
+/* A maximum height, so the dashboard grid below keeps most of the screen. */
 .observer-view .family-recap {
   max-height: 45vh;
   margin: 16px 24px 0;
@@ -794,7 +794,7 @@ select {
     "transcript flags documents"
     "log log log";
   gap: 16px;
-  /* The recap above can't squeeze the dashboard to nothing; the page scrolls instead. */
+  /* The recap above cannot make the dashboard too small. The page scrolls instead. */
   min-height: 560px;
   padding: 16px 24px 20px;
 }

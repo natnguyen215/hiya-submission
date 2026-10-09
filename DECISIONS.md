@@ -1,7 +1,7 @@
 # Decisions
 
-Each entry: the decision, why, and the main alternative rejected. Changes to the defaults in the original
-build plan are logged under "Tuned defaults".
+Each entry: the decision, why, and the main alternative rejected. Changes to the original
+defaults are logged under "Tuned defaults".
 
 ## Name
 
@@ -13,8 +13,6 @@ build plan are logged under "Tuned defaults".
 
 ## Repository and tooling
 
-- **Own git repo in this folder.** The parent `CODE/` folder is an unrelated repo; the submission
-  needs a clean history. Rejected: committing into the parent repo.
 - **`tasks.py` is the task runner; the Makefile is a thin alias.** The dev machine is Windows
   without `make`, and `make dev` must start two processes. A 60-line Python script does that on
   every OS. Rejected: a Makefile with shell-only recipes (breaks on Windows), or npm scripts with
@@ -32,9 +30,15 @@ build plan are logged under "Tuned defaults".
   would otherwise block forever; with the timeout it fails with a stack trace.
 - **`tasks.py dev` stops Vite with `taskkill /T` on Windows.** `terminate()` only ends the
   `npm.cmd` wrapper there and leaves Vite holding port 5173.
-- **M1–M3 landed in one commit.** The backend and the frontend were built in parallel against the
-  shared protocol in `models.py`/`types.ts` and committed together once verified end to end; later
-  milestones are separate commits.
+- **One test per rule, not per variation.** Before submission, the suite went from 115 tests to
+  64. Each policy rule, the WebSocket flow, the eval's scoring and the script checks keep one
+  test. Tests for small variations of the same rule were removed. The tests check the mechanism.
+  The eval shows that the thresholds work. Rejected: keep every regression test. The suite was
+  harder to read than the code that it tests.
+- **Comments in simple English (about 80% of ASD-STE100).** The author must maintain the code
+  alone. So comments use short sentences, one idea in each sentence, and active verbs. The
+  trigger descriptions and the prompts did not change, because the LLM reads them and the eval
+  results depend on them.
 
 ## LLM
 
@@ -93,12 +97,12 @@ build plan are logged under "Tuned defaults".
 - **The same rule applies to turns that arrive during an analysis:** if a human turn came in while
   the LLM was working, the policy defers speaking ("deferred: newer turns not analyzed yet") and
   the rerun decides.
-- **The ladder counts from when the card appeared** (`created_at_turn` = the newest turn when the
-  flag is created, including turns the analyzer hadn't seen yet), and only counts turns an
-  analysis has checked. A counselor turn spoken before the card existed never counts as "saw the
-  card and didn't clarify". The analyzer judges resolution against the flag's evidence turns.
-  The count itself uses `ladder_start_turn`, which starts equal to `created_at_turn` and only
-  moves when the counselor clicks "I'll clarify" (see "Counselor controls").
+- **The ladder counts from when the card appeared.** `ladder_start_turn` is the newest turn when
+  the flag is made, also a turn that the analyzer did not see yet. A counselor turn before the
+  card never counts as "saw the card and did not clarify". Only "I'll clarify" moves
+  `ladder_start_turn` (see "Counselor controls"). An earlier `created_at_turn` field kept the
+  first value for the observer. It was removed before submission: it was only shown, and it was
+  one more field to explain.
 - **A counselor turn already in progress when the card appeared does not count** (2026-10-08
   audit). Position alone said "after the card" for a counselor who was holding push-to-talk when
   the card landed, so a sentence started before they could have read it counted as "saw it and
@@ -334,7 +338,7 @@ build plan are logged under "Tuned defaults".
   the official reference, and the definitions avoid loan limits and interest rates, which change
   yearly. A line-by-line check against studentaid.gov is still open.
 
-## Eval grading and modes
+## Eval grading
 
 - **Grade what Beacon said, not only the state it reports** (2026-10-08 audit). A summon counted
   as "answered" whenever the model said `answered_from_documents`, and a moment as "spoken"
@@ -360,43 +364,16 @@ build plan are logged under "Tuned defaults".
   logistics sentence ((v) is also in adversarial_clean). Its lines share no six-word phrase with
   the analyzer prompt.
 
-- **Paced eval mode (`--paced`) next to lock-step.** Lock-step analyzes every turn, and acts on
-  it, before the next turn exists, so it never shows what a live call does: an analysis that
-  misses the turn spoken during it, a line withdrawn because someone talked first, a flag that
-  goes stale while the LLM works. Paced mode rebuilds rooms.py's timing on the virtual clock and
-  reuses the policy functions unchanged (it does not import rooms.py):
-  - each script turn starts after its pause and arrives when it ends (words × `MS_PER_WORD`),
-    whether or not an analysis is running;
-  - an analysis starts when a turn has arrived, none is running, and `MIN_SECONDS_BETWEEN_LLM_CALLS`
-    have passed since the previous start. It sees only the turns that arrived by then and
-    finishes after the LLM call's measured network time (`--assumed-latency-ms`, default 1500,
-    with `--cache`, since a cached call takes no time). A turn arriving meanwhile is "seen late"
-    and triggers one more pass, as `rooms.request_analysis` does; `after_analysis` gets the
-    `turn_count` that analysis saw, so "deferred" and the in-progress rule behave as live;
-  - a queued line is said `PAUSE_BEFORE_SPEAK_MS` after it was queued (or after the last turn
-    ended, whichever is later) unless a person presses push-to-talk first; then it is withdrawn
-    when that turn arrives, with rooms.py's log text, and the next analysis decides again. Summon
-    answers are never withdrawn. Beacon's line holds the floor for 2 s +
-    `PLAYBACK_FALLBACK_MS_PER_WORD` per word and is marked spoken when it starts, as in
-    `rooms._speak`; script turns wait until it ends.
-
-  What it still does not model: one person's clock for everyone (no clock skew between tabs, no
-  speech-recognition latency between release and the turn arriving); the throttle for summon
-  answers (they are ready after their own latency); and people reacting to Beacon. A scripted
-  reply to Beacon ("Oh, good catch...") is said whether or not Beacon spoke, so in paced mode a
-  withdrawn line is often followed by the very clarification it would have prompted. Paced
-  numbers show how often Beacon gets the floor at all; lock-step numbers stay the comparable
-  measure of perception. Rejected: replacing lock-step (every earlier round would stop being
-  comparable) and importing rooms.py with a fake clock (asyncio sleeps and WebSockets, much
-  harder to follow than one event loop over a list of candidate events).
-- **Each eval run rewrites only its own mode's half of `eval_results.md`.** The two summary
-  tables are merged into one table at the top (one column per mode); each half starts with its
-  summary as JSON in an HTML comment, so a paced run can rebuild the table without re-running
-  lock-step (a full `--runs 3` costs about 300 requests of the 500-a-day quota). Rejected:
-  `--paced` running both modes (double the quota) and two results files (the README links one).
-- **Per script and run, the report counts** analyses, turns seen late, lines withdrawn, flags
-  deferred, flags stale (on the ladder or at creation), and "spoke when due": of the flags the
-  ladder ever found due, how many Beacon said aloud.
+- **No paced eval mode (removed before submission).** A `--paced` mode ran rooms.py's timing on
+  the virtual clock: turns arrived during analyses, and a person who spoke first removed Beacon's
+  line from the queue. It never ran with Gemini (the daily quota ran out). A dry run with a fake
+  LLM that finds every moment showed the risk that it was made to measure: with the demo
+  script's short pauses (0.4–1.2 s) and 1.5 s per analysis, Beacon spoke for none of the planted
+  moments. Each line was removed because a person spoke first. The code worked as designed. It
+  was removed because it copied rooms.py's timing in about 150 more lines, which were hard to
+  explain and to maintain. The finding is in the README's "Limitations". The unit tests check
+  the timing rules (deferred, withdrawn, started before the card). Rejected: keep it without
+  results.
 
 ## Tuned defaults
 
@@ -425,8 +402,8 @@ build plan are logged under "Tuned defaults".
   line makes the model re-raise moments as "..._relapse" keys on the same parent turn; dedupe by
   moment ignores them, so it is log noise only. One run is weaker evidence than round 2's three.
 - **Paced mode: not run.** The key's daily free-tier quota (500 requests; this eval had used
-  about 170 of them) ran out during the paced run's first script, and the eval stopped without
-  writing results. Re-run with `--paced --runs 1` after the reset.
+  about 170 of them) ran out during the paced run's first script. Paced mode was later removed
+  (see "Eval grading").
 
 ### 2026-10-08: audit fixes to the ladder and the grading
 

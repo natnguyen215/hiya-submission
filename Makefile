@@ -1,4 +1,4 @@
-# Thin aliases for tasks.py, which does the work on every OS. Pass eval flags with ARGS, e.g.
+# Short names for the tasks in tasks.py. To give flags to the eval, use ARGS:
 #   make eval ARGS=--cache
 PYTHON ?= python3
 

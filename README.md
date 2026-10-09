@@ -19,9 +19,9 @@ people, the school and the award letter are fictional. The amounts are illustrat
 
 The eval replays scripted calls through the real analyzer and policy.
 
-Each script ran once in lock-step mode with `gemini-3.5-flash-lite` on 2026-10-09, after the
-escalation-ladder fixes and with the stricter grading (a summon must cite an expected document
-line, a spoken line must be about the moment, the trigger must match): 0 errors.
+Each script ran once with `gemini-3.5-flash-lite` on 2026-10-09, after the escalation-ladder
+fixes and with the stricter grading (a summon must cite an expected document line, a spoken line
+must be about the moment, the trigger must match). There were 0 errors.
 
 | Script | What it tests | Result |
 |---|---|---|
@@ -33,18 +33,14 @@ line, a spoken line must be about the moment, the trigger must match): 0 errors.
 | `live_patterns` | a relapse after a correction, a reply split over three presses, two misreads back to back, "never mind", a pause after logistics | 7/7 |
 | `summon_checks` | 10 questions to Beacon, 2 of them outside the documents | 10/10 |
 
-One run is less than the 3 runs per script of earlier rounds (see the tuning log). **Paced mode
-has no results yet:** the free tier's daily quota ran out during its first script.
+One run is less than the 3 runs per script of earlier rounds (see the tuning log).
+
+The eval analyzes each turn before the next turn arrives, and Beacon speaks at once. So it
+measures what Beacon finds and decides. It does not measure live timing (see "Limitations").
 
 Full transcripts and every decision: [`eval_results.md`](eval_results.md). Each tuning step and
-its before-and-after numbers: the "Tuning log" in [`DECISIONS.md`](DECISIONS.md). 114 unit and
+its before-and-after numbers: the "Tuning log" in [`DECISIONS.md`](DECISIONS.md). 64 unit and
 WebSocket tests run without network access.
-
-The eval has two modes. **Lock-step** (the default) analyzes every turn before the next one
-arrives: it measures perception, and its numbers compare across rounds. **Paced** (`--paced`)
-replays the live pipeline's timing on a virtual clock: turns keep arriving while the LLM works,
-and Beacon's line is withdrawn when someone starts talking first. It shows how often Beacon
-actually gets the floor. `eval_results.md` shows both side by side.
 
 ## Quick start
 
@@ -70,8 +66,7 @@ Other commands:
 
 - `make dev`: FastAPI with reload on :8000, and Vite on <http://localhost:5173> (same paths).
 - `make test`: the unit and WebSocket tests.
-- `make eval`: the eval. `make eval ARGS=--cache` reuses cached LLM responses, and
-  `make eval ARGS=--paced` runs the paced mode.
+- `make eval`: the eval. `make eval ARGS=--cache` uses the cached LLM responses again.
 
 Without a key, the app runs but sends nothing to Gemini. The status shows "analyzer unavailable".
 Beacon says its opening line, and answers a summon with "Sorry, I couldn't look that up just
@@ -268,8 +263,12 @@ records are labeled examples for tuning the analyzer later.
 - Chrome only (Web Speech API). Turns use push-to-talk. There is no continuous listening and no
   speaker separation.
 - Pause timing (`gap_ms`) and the "started after the card" rule use the clock of each browser
-  tab. This is correct on one machine but skewed across machines. One person who plays both roles adds window-switching time to each
-  pause (see "Playing both roles yourself?").
+  tab. This is correct on one machine but not across machines. One person who plays both roles
+  adds the time to change windows to each pause (see "Playing both roles yourself?").
+- Live timing is not measured. Beacon speaks only after 700 ms of quiet, and an analysis takes
+  about 1.5 s. In a fast call, a person often talks first, and Beacon withdraws its line. A test
+  with a fake LLM and the demo script's short pauses (0.4–1.2 s) showed this for every planted
+  moment. The simulation runner and the eval wait for Beacon, so they do not show it.
 - The analyzer can miss a moment or misjudge its severity. The design makes a miss cheap (the
   recap catches it) and a false interruption rare (evidence gate, private card first, cooldown).
 - The free tier allows 500 Gemini requests per day for this model. The quota resets at midnight

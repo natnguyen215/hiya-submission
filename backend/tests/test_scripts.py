@@ -1,5 +1,5 @@
-"""Checks the scripts in data/scripts: well-formed lines, valid expectations, and summon lines
-that the wake-word detector actually recognizes. A typo here would silently skew the eval."""
+"""Checks the scripts in data/scripts: the lines are valid, the expectations are valid, and the
+wake-word detector finds each summon line. An error in a script would change the eval results."""
 
 import json
 
@@ -37,13 +37,13 @@ def test_script_lines_are_well_formed(name):
             assert expect["trigger"] is None or expect["trigger"] in TRIGGER_NAMES
             outcomes = expected_outcomes(expect)
             assert outcomes and set(outcomes) <= OUTCOMES, line["id"]
-            # The eval grades what was said, not only the state: an answer must cite an expected
-            # line, and an interjection must mention what the moment is about.
+            # The eval checks what Beacon said, not only the state. An answer must cite an
+            # expected line. A spoken line must name the subject of the moment.
             if "answered" in outcomes:
                 assert expect["refs"] and set(expect["refs"]) <= set(docs.LINES), line["id"]
             if "spoken" in outcomes:
                 assert expect["mentions"] and all(m == m.lower() for m in expect["mentions"]), line["id"]
-            # A summon moment must reach the summon path, and nothing else may.
+            # A summon moment must start a summon. No other line can start one.
             assert is_summon == (expect["trigger"] == "SUMMON"), line["id"]
         else:
             assert not is_summon, f"{line['id']} would summon Beacon without an expectation"
@@ -57,4 +57,4 @@ def test_clean_scripts_plant_nothing():
 def test_noisy_demo_keeps_the_demo_structure():
     demo, noisy = load("demo_call"), load("demo_call_stt_noise")
     assert [(d["role"], d.get("expect")) for d in demo] == [(n["role"], n.get("expect")) for n in noisy]
-    assert all("?" not in n["text"] for n in noisy)  # Chrome rarely adds question marks
+    assert all("?" not in n["text"] for n in noisy)  # Chrome does not often add question marks
